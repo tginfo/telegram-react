@@ -55,7 +55,7 @@
     "test": "react-app-rewired test --env=jsdom",
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build",
+    "deploy": "gh-pages -d build ${CI_REPO}",
     "size": "react-app-rewired build --stats && npx webpack-bundle-analyzer ./build/bundle-stats.json",
     "sw-precache-cra-list-config": "sw-precache-cra --list-config"
   },
