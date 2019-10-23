@@ -27,4 +27,4 @@ jobs:
     - name: Deploying
       run: npm run deploy
       env:
-        CI_REPO: -r https://${{ secrets.PUSH_ACCESS_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
+        CI_REPO: -r https://${{ secrets.PUSH_ACCESS_TOKEN }}@github.com/${{ GITHUB_REPOSITORY }}.git
