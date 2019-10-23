@@ -1,0 +1,28 @@
+name: Deploy
+
+on:
+  push:
+    branches: 
+      - master
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+      name: Cloning repo
+    - name: Setup Node.js 12.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12.x
+    - name: Installing dependencies
+      run: npm install
+    - name: Setup environment
+      run: |
+        touch .env
+        echo 'REACT_APP_TELEGRAM_API_ID=${{ secrets.REACT_APP_TELEGRAM_API_ID }}' >> .env
+        echo 'REACT_APP_TELEGRAM_API_HASH=${{ secrets.REACT_APP_TELEGRAM_API_HASH }}' >> .env
+    - name: Deploying
+      run: npm run deploy
