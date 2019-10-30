@@ -24,8 +24,9 @@ import CreatePollDialog from '../Popup/CreatePollDialog';
 import IconButton from '@material-ui/core/IconButton';
 import InputBoxHeader from './InputBoxHeader';
 import OutputTypingManager from '../../Utils/OutputTypingManager';
+import { getEntities } from '../../Utils/Message';
 import { getSize, readImageSize } from '../../Utils/Common';
-import { getChatDraft, getChatDraftReplyToMessageId, isMeChat, isPrivateChat } from '../../Utils/Chat';
+import { draftEquals, getChatDraft, getChatDraftReplyToMessageId, isMeChat, isPrivateChat } from '../../Utils/Chat';
 import { borderStyle } from '../Theme';
 import { PHOTO_SIZE } from '../../Constants';
 import MessageStore from '../../Stores/MessageStore';
@@ -58,7 +59,6 @@ class InputBoxControl extends Component {
 
         const chatId = ApplicationStore.getChatId();
 
-        this.innerHTML = null;
         this.state = {
             chatId: chatId,
             replyToMessageId: getChatDraftReplyToMessageId(chatId),
@@ -94,8 +94,6 @@ class InputBoxControl extends Component {
     }
 
     componentDidMount() {
-        //console.log('Perf componentDidMount');
-
         ApplicationStore.on('clientUpdateChatId', this.onClientUpdateChatId);
         MessageStore.on('clientUpdateReply', this.onClientUpdateReply);
         StickerStore.on('clientUpdateStickerSend', this.onClientUpdateStickerSend);
@@ -109,9 +107,9 @@ class InputBoxControl extends Component {
         const newChatDraftMessage = this.getNewChatDraftMessage(this.state.chatId, this.state.replyToMessageId);
         this.setChatDraftMessage(newChatDraftMessage);
 
-        ApplicationStore.removeListener('clientUpdateChatId', this.onClientUpdateChatId);
-        MessageStore.removeListener('clientUpdateReply', this.onClientUpdateReply);
-        StickerStore.removeListener('clientUpdateStickerSend', this.onClientUpdateStickerSend);
+        ApplicationStore.off('clientUpdateChatId', this.onClientUpdateChatId);
+        MessageStore.off('clientUpdateReply', this.onClientUpdateReply);
+        StickerStore.off('clientUpdateStickerSend', this.onClientUpdateStickerSend);
     }
 
     onClientUpdateStickerSend = update => {
@@ -123,7 +121,6 @@ class InputBoxControl extends Component {
 
         this.newMessageRef.current.innerText = null;
         this.newMessageRef.current.textContent = null;
-        this.innerHTML = null;
 
         const content = {
             '@type': 'inputMessageSticker',
@@ -175,7 +172,6 @@ class InputBoxControl extends Component {
         const { chatId } = this.state;
         if (chatId === update.nextChatId) return;
 
-        this.innerHTML = null;
         this.setState({
             chatId: update.nextChatId,
             replyToMessageId: getChatDraftReplyToMessageId(update.nextChatId),
@@ -191,10 +187,8 @@ class InputBoxControl extends Component {
         const draft = getChatDraft(chatId);
         if (draft) {
             element.innerText = draft.text;
-            this.innerHTML = draft.text;
         } else {
             element.innerText = null;
-            this.innerHTML = null;
         }
     };
 
@@ -248,61 +242,53 @@ class InputBoxControl extends Component {
     };
 
     getNewChatDraftMessage = (chatId, replyToMessageId) => {
-        let chat = ChatStore.get(chatId);
+        const chat = ChatStore.get(chatId);
         if (!chat) return;
-        const newDraft = this.getInputText();
 
-        let previousDraft = '';
-        let previousReplyToMessageId = 0;
         const { draft_message } = chat;
-        if (draft_message && draft_message.input_message_text && draft_message.input_message_text.text) {
-            const { reply_to_message_id, input_message_text } = draft_message;
-
-            previousReplyToMessageId = reply_to_message_id;
-            if (input_message_text && input_message_text.text) {
-                previousDraft = input_message_text.text.text;
+        const { innerHTML } = this.newMessageRef.current;
+        const { text, entities } = getEntities(innerHTML);
+        const draftMessage = {
+            '@type': 'draftMessage',
+            reply_to_message_id: replyToMessageId,
+            input_message_text: {
+                '@type': 'inputMessageText',
+                text: {
+                    '@type': 'formattedText',
+                    text,
+                    entities
+                },
+                disable_web_page_preview: true,
+                clear_draft: false
             }
+        };
+
+        if (draftEquals(draft_message, draftMessage)) {
+            return null;
         }
 
-        if (newDraft !== previousDraft || replyToMessageId !== previousReplyToMessageId) {
-            const draftMessage = {
-                '@type': 'draftMessage',
-                reply_to_message_id: replyToMessageId,
-                input_message_text: {
-                    '@type': 'inputMessageText',
-                    text: {
-                        '@type': 'formattedText',
-                        text: newDraft,
-                        entities: null
-                    },
-                    disable_web_page_preview: true,
-                    clear_draft: false
-                }
-            };
-
-            return { chatId: chatId, draftMessage: draftMessage };
-        }
-
-        return null;
+        return { chatId, draftMessage };
     };
 
     handleSubmit = () => {
-        let text = this.getInputText();
+        let text = this.newMessageRef.current.innerHTML;
 
         this.newMessageRef.current.innerText = null;
         this.newMessageRef.current.textContent = null;
-        this.innerHTML = null;
         this.handleInput();
 
         if (!text) return;
         if (!text.trim()) return;
 
+        const textWithEntities = getEntities(text);
+        console.log('[sm] textWithEntities', textWithEntities);
+
         const content = {
             '@type': 'inputMessageText',
             text: {
                 '@type': 'formattedText',
-                text: text,
-                entities: null
+                text: textWithEntities.text,
+                entities: textWithEntities.entities
             },
             disable_web_page_preview: false,
             clear_draft: true
@@ -386,14 +372,82 @@ class InputBoxControl extends Component {
         typingManager.setTyping({ '@type': 'chatActionTyping' });
     };
 
-    handleKeyDown = e => {
-        const innerText = this.newMessageRef.current.innerText;
-        const innerHTML = this.newMessageRef.current.innerHTML;
-        this.innerHTML = innerHTML;
+    handleClear = () => {
+        document.execCommand('removeFormat', false, null);
+        document.execCommand('unlink', false, null);
+    };
 
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
+    handleBold = () => {
+        document.execCommand('removeFormat', false, null);
+        document.execCommand('unlink', false, null);
+        document.execCommand('bold', false, null);
+    };
+
+    handleItalic = () => {
+        document.execCommand('removeFormat', false, null);
+        document.execCommand('unlink', false, null);
+        document.execCommand('italic', false, null);
+    };
+
+    handleUnderline = () => {
+        document.execCommand('removeFormat', false, null);
+        document.execCommand('unlink', false, null);
+        document.execCommand('underline', false, null);
+    };
+
+    handleStrikeThrough = () => {
+        document.execCommand('removeFormat', false, null);
+        document.execCommand('unlink', false, null);
+        document.execCommand('strikeThrough', false, null);
+    };
+
+    handleUrl = () => {};
+
+    handleKeyDown = event => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
             this.handleSubmit();
+            return;
+        }
+
+        if (event.repeat) return;
+
+        if ((event.ctrlKey || event.metaKey) && !event.shiftKey) {
+            if (!event.altKey) {
+                switch (event.keyCode) {
+                    case 66: {
+                        // cmd + b
+                        this.handleBold();
+                        event.preventDefault();
+                        event.stopPropagation();
+                        break;
+                    }
+                    case 73: {
+                        // cmd + i
+                        this.handleItalic();
+                        event.preventDefault();
+                        event.stopPropagation();
+                        break;
+                    }
+                    case 75: {
+                        // cmd + k
+                        this.handleUrl();
+                        event.preventDefault();
+                        event.stopPropagation();
+                        break;
+                    }
+                }
+            } else {
+                switch (event.keyCode) {
+                    case 192: {
+                        // alt + cmd + n
+                        this.handleClear();
+                        event.preventDefault();
+                        event.stopPropagation();
+                        break;
+                    }
+                }
+            }
         }
     };
 
@@ -454,7 +508,6 @@ class InputBoxControl extends Component {
         if (plainText) {
             event.preventDefault();
             document.execCommand('insertHTML', false, plainText);
-            this.innerHTML = plainText;
             return;
         }
     };
@@ -605,8 +658,6 @@ class InputBoxControl extends Component {
     render() {
         const { classes, t } = this.props;
         const { chatId, replyToMessageId, openPasteDialog } = this.state;
-
-        const content = this.innerHTML !== null ? this.innerHTML : null;
 
         return (
             <>
