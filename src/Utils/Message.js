@@ -279,30 +279,23 @@ function getFormattedText(text) {
 function getText(message) {
     if (!message) return null;
 
-    let text = [];
+    let result = [];
 
     const { content } = message;
+    if (!content) return result;
 
-    if (
-        content &&
-        content['@type'] === 'messageText' &&
-        content.text &&
-        content.text['@type'] === 'formattedText' &&
-        content.text.text
-    ) {
-        text = getFormattedText(content.text);
-    } else {
-        //text.push('[' + message.content['@type'] + ']');//JSON.stringify(x);
-        if (content && content.caption && content.caption['@type'] === 'formattedText' && content.caption.text) {
-            text.push('\n');
-            let formattedText = getFormattedText(content.caption);
-            if (formattedText) {
-                text = text.concat(formattedText);
-            }
+    const { text, caption } = content;
+
+    if (text && text['@type'] === 'formattedText' && text.text) {
+        result = getFormattedText(text);
+    } else if (caption && caption['@type'] === 'formattedText' && caption.text) {
+        const formattedText = getFormattedText(caption);
+        if (formattedText) {
+            result = result.concat(formattedText);
         }
     }
 
-    return text;
+    return result;
 }
 
 function getWebPage(message) {
@@ -1772,6 +1765,8 @@ export function getEntities(text) {
     const entities = [];
     if (!text) return { text, entities };
 
+    text = text.split('<br>').join('\n');
+
     console.log(`[ge] start text=${text}`);
 
     let index = -1; // first index of end tag
@@ -1824,6 +1819,9 @@ export function getEntities(text) {
                     textContent: finalText.substring(offset, offset + length)
                 });
                 offset += length;
+                break;
+            }
+            case 'BR': {
                 break;
             }
             case 'CODE': {
@@ -1895,7 +1893,13 @@ export function getEntities(text) {
                 let replacedFirst = firstChar === ' ' || firstChar === '\xA0' || firstChar === '\n';
                 let startText = text.substring(0, start - (replacedFirst ? 1 : 0));
 
-                const contentText = text.substring(start + 3, index);
+                // remove first line break in pre content
+                let replacedContentNewLine = false;
+                let contentText = text.substring(start + 3, index);
+                if (contentText.length > 0 && contentText[0] === '\n') {
+                    contentText = contentText.substring(1);
+                    replacedContentNewLine = true;
+                }
 
                 // clean space and new line symbol after end tag
                 const lastChar = index + 3 < text.length ? text[index + 3] : 0;
@@ -1916,7 +1920,7 @@ export function getEntities(text) {
 
                 if (contentText.length > 0) {
                     offset = start + (replacedFirst ? 0 : 1);
-                    length = index - start - 3 + (replacedFirst ? 0 : 1);
+                    length = index - start - 3 - (replacedContentNewLine ? 1 : 0) + (replacedFirst ? 0 : 1);
 
                     text = startText + contentText + endText;
 
@@ -2041,6 +2045,31 @@ export function getEntities(text) {
     console.log(`[ge] result text=${text}`, entities);
 
     return { text, entities };
+}
+
+export function canMessageBeEdited(chatId, messageId) {
+    const message = MessageStore.get(chatId, messageId);
+    if (!message) return false;
+
+    const { can_be_edited, content } = message;
+    if (!can_be_edited) return false;
+
+    switch (content['@type']) {
+        case 'messageText': {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+export function showMessageForward(chatId, messageId) {
+    const message = MessageStore.get(chatId, messageId);
+    if (!message) return false;
+
+    const { forward_info, content } = message;
+
+    return forward_info && content && content['@type'] !== 'messageSticker' && content['@type'] !== 'messageAudio';
 }
 
 export {
