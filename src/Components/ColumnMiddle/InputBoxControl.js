@@ -25,7 +25,7 @@ import OutputTypingManager from '../../Utils/OutputTypingManager';
 import { borderStyle } from '../Theme';
 import { draftEquals, getChatDraft, getChatDraftReplyToMessageId, isMeChat, isPrivateChat } from '../../Utils/Chat';
 import { findLastTextNode } from '../../Utils/DOM';
-import { getEntities, getNodes } from '../../Utils/Message';
+import { getEntities, getNodes, isTextMessage } from '../../Utils/Message';
 import { getSize, readImageSize } from '../../Utils/Common';
 import { PHOTO_SIZE } from '../../Constants';
 import AppStore from '../../Stores/ApplicationStore';
@@ -466,7 +466,7 @@ class InputBoxControl extends Component {
             text,
             entities
         };
-        const content = {
+        const inputContent = {
             '@type': 'inputMessageText',
             text: formattedText,
             disable_web_page_preview: false,
@@ -482,12 +482,12 @@ class InputBoxControl extends Component {
 
             const { text, caption } = content;
             if (text) {
-                this.editMessageText(content, result => {});
+                this.editMessageText(inputContent, result => {});
             } else if (caption) {
                 this.editMessageCaption(formattedText, result => {});
             }
         } else {
-            this.sendMessage(content, false, result => {});
+            this.sendMessage(inputContent, false, result => {});
         }
     };
 
@@ -712,6 +712,9 @@ class InputBoxControl extends Component {
                 if (!repeat && !altKey && !ctrlKey && !metaKey && !shiftKey) {
                     const element = this.newMessageRef.current;
                     if (element && !element.innerText) {
+                        const { editMessageId } = this.state;
+                        if (editMessageId) return;
+
                         TdLibController.clientUpdate({
                             '@type': 'clientUpdateTryEditMessage'
                         });
@@ -905,20 +908,22 @@ class InputBoxControl extends Component {
         if (!editMessageId) return;
         if (!content) return;
 
-        const result = await TdLibController.send({
-            '@type': 'editMessageText',
-            chat_id: chatId,
-            message_id: editMessageId,
-            input_message_content: content
-        });
+        try {
+            const result = await TdLibController.send({
+                '@type': 'editMessageText',
+                chat_id: chatId,
+                message_id: editMessageId,
+                input_message_content: content
+            });
 
-        TdLibController.clientUpdate({
-            '@type': 'clientUpdateEditMessage',
-            chatId,
-            messageId: 0
-        });
-
-        callback(result);
+            callback(result);
+        } finally {
+            TdLibController.clientUpdate({
+                '@type': 'clientUpdateEditMessage',
+                chatId,
+                messageId: 0
+            });
+        }
     }
 
     sendMessage = async (content, clearDraft, callback) => {
@@ -1109,6 +1114,8 @@ class InputBoxControl extends Component {
             openEditUrl
         } = this.state;
 
+        const isMediaEditing = editMessageId > 0 && !isTextMessage(chatId, editMessageId);
+
         return (
             <>
                 <div className={classNames(classes.borderColor, 'inputbox')}>
@@ -1133,7 +1140,7 @@ class InputBoxControl extends Component {
                             <div
                                 id='inputbox-message'
                                 ref={this.newMessageRef}
-                                placeholder={t('Message')}
+                                placeholder={isMediaEditing ? t('Caption') : t('Message')}
                                 contentEditable
                                 suppressContentEditableWarning
                                 onKeyDown={this.handleKeyDown}
@@ -1157,12 +1164,14 @@ class InputBoxControl extends Component {
                                 accept='image/*'
                                 onChange={this.handleAttachPhotoComplete}
                             />
-                            <AttachButton
-                                chatId={chatId}
-                                onAttachPhoto={this.handleAttachPhoto}
-                                onAttachDocument={this.handleAttachDocument}
-                                onAttachPoll={this.handleAttachPoll}
-                            />
+                            {!Boolean(editMessageId) && (
+                                <AttachButton
+                                    chatId={chatId}
+                                    onAttachPhoto={this.handleAttachPhoto}
+                                    onAttachDocument={this.handleAttachDocument}
+                                    onAttachPoll={this.handleAttachPoll}
+                                />
+                            )}
 
                             {/*<IconButton>*/}
                             {/*<KeyboardVoiceIcon />*/}
