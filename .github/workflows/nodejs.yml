@@ -8,7 +8,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v1
@@ -21,7 +21,6 @@ jobs:
       run: npm install
     - name: Setup environment
       run: |
-        touch .env
         echo 'REACT_APP_TELEGRAM_API_ID=${{ secrets.REACT_APP_TELEGRAM_API_ID }}' >> .env
         echo 'REACT_APP_TELEGRAM_API_HASH=${{ secrets.REACT_APP_TELEGRAM_API_HASH }}' >> .env
         git config user.email ${{ secrets.COMMITER_EMAIL }}
