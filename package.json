@@ -1,7 +1,7 @@
 {
   "homepage": "https://web.tginfo.me",
   "name": "telegram_react",
-  "version": "0.0.501",
+  "version": "0.0.503",
   "private": true,
   "dependencies": {
     "@material-ui/core": "^3.9.2",
@@ -51,8 +51,7 @@
     "eject": "react-scripts eject",
     "predeploy": "npm run build && echo web.tginfo.me > build/CNAME",
     "deploy": "gh-pages -d build ${CI_REPO}",
-    "size": "react-app-rewired build --stats && npx webpack-bundle-analyzer ./build/bundle-stats.json",
-    "sw-precache-cra-list-config": "sw-precache-cra --list-config"
+    "stats": "react-app-rewired build --bundle-report && npx webpack-bundle-analyzer ./build/bundle-stats.json"
   },
   "devDependencies": {
     "customize-cra": "^0.5.0",
