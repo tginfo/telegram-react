@@ -22,7 +22,6 @@ import packageJson from '../package.json';
 import AuthFormControl from './Components/Auth/AuthFormControl';
 import InactivePage from './Components/InactivePage';
 import NativeAppPage from './Components/NativeAppPage';
-import MainPage from './Components/MainPage';
 import StubPage from './Components/StubPage';
 import registerServiceWorker from './registerServiceWorker';
 import { isMobile } from './Utils/Common';
@@ -34,6 +33,7 @@ import AuthorizationStore from './Stores/AuthorizationStore';
 import TdLibController from './Controllers/TdLibController';
 import './TelegramApp.css';
 
+import MainPage from './Components/MainPage';
 // const MainPage = React.lazy(() => import('./Components/MainPage'));
 
 const styles = theme => ({
@@ -65,7 +65,7 @@ class TelegramApp extends Component {
         this.state = {
             prevAuthorizationState: AuthorizationStore.current,
             authorizationState: null,
-            databaseExists: true,
+            tdlibDatabaseExists: false,
             inactive: false,
             fatalError: false,
             nativeMobile: isMobile()
@@ -82,7 +82,7 @@ class TelegramApp extends Component {
         TdLibController.addListener('update', this.onUpdate);
 
         ApplicationStore.on('clientUpdateAppInactive', this.onClientUpdateAppInactive);
-        ApplicationStore.on('clientUpdateDatabaseExists', this.onClientUpdateDatabaseExists);
+        ApplicationStore.on('clientUpdateTdLibDatabaseExists', this.onClientUpdateTdLibDatabaseExists);
         ApplicationStore.on('updateAuthorizationState', this.onUpdateAuthorizationState);
         ApplicationStore.on('updateFatalError', this.onUpdateFatalError);
     }
@@ -91,12 +91,12 @@ class TelegramApp extends Component {
         TdLibController.removeListener('update', this.onUpdate);
 
         ApplicationStore.removeListener('clientUpdateAppInactive', this.onClientUpdateAppInactive);
-        ApplicationStore.removeListener('clientUpdateDatabaseExists', this.onClientUpdateDatabaseExists);
+        ApplicationStore.removeListener('clientUpdateTdLibDatabaseExists', this.onClientUpdateTdLibDatabaseExists);
         ApplicationStore.removeListener('updateAuthorizationState', this.onUpdateAuthorizationState);
         ApplicationStore.removeListener('updateFatalError', this.onUpdateFatalError);
     }
 
-    onClientUpdateDatabaseExists = update => {
+    onClientUpdateTdLibDatabaseExists = update => {
         const { exists } = update;
 
         if (!exists) {
@@ -104,7 +104,7 @@ class TelegramApp extends Component {
                 authorizationState: {
                     '@type': 'authorizationStateWaitTdlib'
                 },
-                databaseExists: exists
+                tdlibDatabaseExists: exists
             });
         }
     };
@@ -181,7 +181,7 @@ class TelegramApp extends Component {
 
     render() {
         const { t } = this.props;
-        const { inactive, nativeMobile, databaseExists, fatalError } = this.state;
+        const { inactive, nativeMobile, tdlibDatabaseExists, fatalError } = this.state;
         let { authorizationState, prevAuthorizationState } = this.state;
         const state = authorizationState;
         if (
@@ -191,7 +191,13 @@ class TelegramApp extends Component {
         ) {
             if (prevAuthorizationState) {
                 authorizationState = prevAuthorizationState;
-            } else {
+            }
+            // else if (tdlibDatabaseExists) {
+            //     authorizationState = {
+            //         '@type': 'authorizationStateReady'
+            //     }
+            // }
+            else {
                 authorizationState = {
                     '@type': 'authorizationStateWaitPhoneNumber'
                 };
@@ -199,7 +205,6 @@ class TelegramApp extends Component {
         }
 
         const loading = t('Loading').replace('...', '');
-        // let page = <StubPage title={loading} />;
         let page = <MainPage />;
         //     (
         //     <React.Suspense fallback={<StubPage title='' />}>
@@ -217,12 +222,6 @@ class TelegramApp extends Component {
                 case 'authorizationStateClosing':
                 case 'authorizationStateLoggingOut':
                 case 'authorizationStateReady': {
-                    page = <MainPage />;
-                    // page = (
-                    //     <React.Suspense fallback={<StubPage title='' />}>
-                    //         <MainPage />
-                    //     </React.Suspense>
-                    // );
                     break;
                 }
                 case 'authorizationStateWaitCode':
@@ -238,14 +237,14 @@ class TelegramApp extends Component {
                     break;
                 case 'authorizationStateWaitEncryptionKey':
                 case 'authorizationStateWaitTdlibParameters': {
-                    if (!databaseExists) {
-                        page = (
-                            <AuthFormControl
-                                authorizationState={authorizationState}
-                                onChangePhone={this.handleChangePhone}
-                            />
-                        );
-                    }
+                    // if (!tdlibDatabaseExists) {
+                    //     page = (
+                    //         <AuthFormControl
+                    //             authorizationState={authorizationState}
+                    //             onChangePhone={this.handleChangePhone}
+                    //         />
+                    //     );
+                    // }
 
                     break;
                 }
@@ -256,10 +255,9 @@ class TelegramApp extends Component {
             'TelegramApp.render',
             state,
             prevAuthorizationState,
-            authorizationState,
             'nativeMobile=' + nativeMobile,
             'inactive=' + inactive,
-            'db=' + databaseExists,
+            'tdlibDb=' + tdlibDatabaseExists,
             page
         );
 
