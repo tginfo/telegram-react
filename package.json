@@ -1,7 +1,7 @@
 {
   "homepage": "https://web.tginfo.me",
   "name": "telegram_react",
-  "version": "0.0.508",
+  "version": "0.0.513",
   "private": true,
   "dependencies": {
     "@material-ui/core": "^3.9.2",

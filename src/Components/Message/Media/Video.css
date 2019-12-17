@@ -9,7 +9,6 @@
     border-radius: 6px;
     transform: translateZ(0);
     overflow: hidden;
-    cursor: pointer;
     position: relative;
     color: white;
 }
@@ -25,6 +24,11 @@
 
 .media-blurred {
     filter: blur(2px);
+}
+
+.media-mini-blurred {
+    filter: blur(4px);
+    /*transform: scale(1.05);*/
 }
 
 .video-play {

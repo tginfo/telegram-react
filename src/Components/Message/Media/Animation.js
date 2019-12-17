@@ -60,18 +60,15 @@ class Animation extends React.Component {
     }
 
     componentWillUnmount() {
-        FileStore.removeListener('clientUpdateAnimationThumbnailBlob', this.onClientUpdateAnimationThumbnailBlob);
-        FileStore.removeListener('clientUpdateAnimationBlob', this.onClientUpdateAnimationBlob);
-        AppStore.removeListener('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
-        AppStore.removeListener('clientUpdateMediaViewerContent', this.onClientUpdateMediaViewerContent);
-        AppStore.removeListener('clientUpdateProfileMediaViewerContent', this.onClientUpdateProfileMediaViewerContent);
-        MessageStore.removeListener('clientUpdateMessagesInView', this.onClientUpdateMessagesInView);
-        InstantViewStore.removeListener('clientUpdateInstantViewContent', this.onClientUpdateInstantViewContent);
-        InstantViewStore.removeListener(
-            'clientUpdateInstantViewViewerContent',
-            this.onClientUpdateInstantViewViewerContent
-        );
-        InstantViewStore.removeListener('clientUpdateBlocksInView', this.onClientUpdateBlocksInView);
+        FileStore.off('clientUpdateAnimationThumbnailBlob', this.onClientUpdateAnimationThumbnailBlob);
+        FileStore.off('clientUpdateAnimationBlob', this.onClientUpdateAnimationBlob);
+        AppStore.off('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
+        AppStore.off('clientUpdateMediaViewerContent', this.onClientUpdateMediaViewerContent);
+        AppStore.off('clientUpdateProfileMediaViewerContent', this.onClientUpdateProfileMediaViewerContent);
+        MessageStore.off('clientUpdateMessagesInView', this.onClientUpdateMessagesInView);
+        InstantViewStore.off('clientUpdateInstantViewContent', this.onClientUpdateInstantViewContent);
+        InstantViewStore.off('clientUpdateInstantViewViewerContent', this.onClientUpdateInstantViewViewerContent);
+        InstantViewStore.off('clientUpdateBlocksInView', this.onClientUpdateBlocksInView);
     }
 
     startStopPlayer = () => {
@@ -144,7 +141,9 @@ class Animation extends React.Component {
         if (!animation) return;
 
         if (animation.id === fileId) {
-            this.forceUpdate();
+            this.forceUpdate(() => {
+                this.startStopPlayer();
+            });
         }
     };
 
@@ -161,7 +160,7 @@ class Animation extends React.Component {
 
     render() {
         const { displaySize, openMedia, t, style } = this.props;
-        const { thumbnail, animation, mime_type, width, height } = this.props.animation;
+        const { minithumbnail, thumbnail, animation, mime_type, width, height } = this.props.animation;
 
         const fitPhotoSize = getFitSize({ width, height } || thumbnail, displaySize, false);
         if (!fitPhotoSize) return null;
@@ -172,14 +171,15 @@ class Animation extends React.Component {
             ...style
         };
 
+        const miniSrc = minithumbnail ? 'data:image/jpeg;base64, ' + minithumbnail.data : null;
         const thumbnailSrc = getSrc(thumbnail ? thumbnail.photo : null);
         const src = getSrc(animation);
 
-        const isBlurred = isBlurredThumbnail(thumbnail);
+        const isBlurred = thumbnailSrc ? isBlurredThumbnail(thumbnail) : Boolean(miniSrc);
         const isGif = isGifMimeType(mime_type);
 
         return (
-            <div className='animation' style={animationStyle} onClick={openMedia}>
+            <div className={classNames('animation', { pointer: openMedia })} style={animationStyle} onClick={openMedia}>
                 {src ? (
                     isGif ? (
                         <img className='animation-preview' src={src} alt='' />
@@ -188,7 +188,7 @@ class Animation extends React.Component {
                             ref={this.videoRef}
                             className='media-viewer-content-animation'
                             src={src}
-                            poster={thumbnailSrc}
+                            poster={thumbnailSrc || miniSrc}
                             muted
                             autoPlay
                             loop
@@ -200,8 +200,11 @@ class Animation extends React.Component {
                 ) : (
                     <>
                         <img
-                            className={classNames('animation-preview', { 'media-blurred': isBlurred })}
-                            src={thumbnailSrc}
+                            className={classNames('animation-preview', {
+                                'media-blurred': isBlurred,
+                                'media-mini-blurred': !src && !thumbnailSrc && isBlurred
+                            })}
+                            src={thumbnailSrc || miniSrc}
                             alt=''
                         />
                         <div className='animation-meta'>{getFileSize(animation)}</div>
