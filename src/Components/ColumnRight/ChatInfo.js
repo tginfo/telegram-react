@@ -38,7 +38,7 @@ class ChatInfo extends React.Component {
     constructor(props) {
         super(props);
 
-        console.log('ChatDetails.ChatInfo.ctor');
+        // console.log('ChatDetails.ChatInfo.ctor');
 
         this.detailsRef = React.createRef();
 
@@ -70,7 +70,7 @@ class ChatInfo extends React.Component {
     }
 
     componentWillUnmount() {
-        ApplicationStore.removeListener('clientUpdateChatId', this.onClientUpdateChatId);
+        ApplicationStore.off('clientUpdateChatId', this.onClientUpdateChatId);
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
@@ -235,7 +235,7 @@ class ChatInfo extends React.Component {
     };
 
     render() {
-        console.log('ChatDetails.ChatInfo.render', this.state);
+        // console.log('ChatDetails.ChatInfo.render', this.state);
         const { classes, className, popup } = this.props;
         const {
             chatId,

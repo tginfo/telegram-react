@@ -6,8 +6,11 @@
  */
 
 import React from 'react';
-import classNames from 'classnames';
+import { compose } from 'recompose';
+import { withRestoreRef, withSaveRef } from '../../Utils/HOC';
 import withStyles from '@material-ui/core/styles/withStyles';
+import { withTranslation } from 'react-i18next';
+import classNames from 'classnames';
 import UnreadSeparator from './UnreadSeparator';
 import Photo from './Media/Photo';
 import { openMedia } from '../../Utils/Message';
@@ -28,7 +31,7 @@ const styles = theme => ({
         to: { backgroundColor: 'transparent' }
     },
     messageHighlighted: {
-        animation: 'highlighted 4s ease-out'
+        animation: '$highlighted 4s ease-out'
     },
     serviceMessageContent: {
         color: theme.palette.text.secondary
@@ -88,7 +91,7 @@ class ServiceMessage extends React.Component {
     }
 
     componentWillUnmount() {
-        MessageStore.removeListener('clientUpdateMessageHighlighted', this.onClientUpdateMessageHighlighted);
+        MessageStore.off('clientUpdateMessageHighlighted', this.onClientUpdateMessageHighlighted);
     }
 
     onClientUpdateMessageHighlighted = update => {
@@ -163,4 +166,11 @@ class ServiceMessage extends React.Component {
     }
 }
 
-export default withStyles(styles, { withTheme: true })(ServiceMessage);
+const enhance = compose(
+    withSaveRef(),
+    withStyles(styles, { withTheme: true }),
+    withTranslation(),
+    withRestoreRef()
+);
+
+export default enhance(ServiceMessage);

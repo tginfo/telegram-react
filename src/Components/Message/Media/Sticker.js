@@ -111,19 +111,16 @@ class Sticker extends React.Component {
     }
 
     componentWillUnmount() {
-        ApplicationStore.removeListener('clientUpdateDialogChatId', this.onClientUpdateDialogChatId);
-        ApplicationStore.removeListener('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
-        ApplicationStore.removeListener('clientUpdateMediaViewerContent', this.onClientUpdateMediaViewerContent);
-        ApplicationStore.removeListener(
-            'clientUpdateProfileMediaViewerContent',
-            this.onClientUpdateProfileMediaViewerContent
-        );
-        InstantViewStore.removeListener('clientUpdateInstantViewContent', this.onClientUpdateInstantViewContent);
-        FileStore.removeListener('clientUpdateStickerThumbnailBlob', this.onClientUpdateStickerThumbnailBlob);
-        FileStore.removeListener('clientUpdateStickerBlob', this.onClientUpdateStickerBlob);
-        MessageStore.removeListener('clientUpdateMessagesInView', this.onClientUpdateMessagesInView);
-        StickerStore.removeListener('clientUpdateStickerPreview', this.onClientUpdateStickerPreview);
-        StickerStore.removeListener('clientUpdateStickerSet', this.onClientUpdateStickerSet);
+        ApplicationStore.off('clientUpdateDialogChatId', this.onClientUpdateDialogChatId);
+        ApplicationStore.off('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
+        ApplicationStore.off('clientUpdateMediaViewerContent', this.onClientUpdateMediaViewerContent);
+        ApplicationStore.off('clientUpdateProfileMediaViewerContent', this.onClientUpdateProfileMediaViewerContent);
+        InstantViewStore.off('clientUpdateInstantViewContent', this.onClientUpdateInstantViewContent);
+        FileStore.off('clientUpdateStickerThumbnailBlob', this.onClientUpdateStickerThumbnailBlob);
+        FileStore.off('clientUpdateStickerBlob', this.onClientUpdateStickerBlob);
+        MessageStore.off('clientUpdateMessagesInView', this.onClientUpdateMessagesInView);
+        StickerStore.off('clientUpdateStickerPreview', this.onClientUpdateStickerPreview);
+        StickerStore.off('clientUpdateStickerSet', this.onClientUpdateStickerSet);
     }
 
     onClientUpdateInstantViewContent = update => {
@@ -376,64 +373,65 @@ class Sticker extends React.Component {
             );
         }
 
+        let content = null;
         const fitSize = getFitSize({ width: width, height: height }, displaySize);
-        if (!fitSize) return null;
+        if (fitSize) {
+            content = isAnimated ? (
+                <>
+                    {animationData ? (
+                        <Lottie
+                            ref={this.lottieRef}
+                            options={{
+                                autoplay: autoplay,
+                                loop: true,
+                                animationData,
+                                renderer: 'svg',
+                                rendererSettings: {
+                                    preserveAspectRatio: 'xMinYMin slice', // Supports the same options as the svg element's preserveAspectRatio property
+                                    clearCanvas: false,
+                                    progressiveLoad: true, // Boolean, only svg renderer, loads dom elements when needed. Might speed up initialization for large number of elements.
+                                    hideOnTransparent: true, //Boolean, only svg renderer, hides elements when opacity reaches 0 (defaults to true)
+                                    className: 'lottie-svg'
+                                }
+                            }}
+                            eventListeners={[
+                                {
+                                    eventName: 'loopComplete',
+                                    callback: this.handleAnimationLoopComplete
+                                }
+                            ]}
+                            onMouseOut={this.handleAnimationMouseOut}
+                        />
+                    ) : (
+                        <img
+                            className={classNames('sticker-image', { 'media-blurred': isBlurred && blur })}
+                            draggable={false}
+                            src={thumbnailSrc}
+                            alt=''
+                        />
+                    )}
+                </>
+            ) : (
+                <>
+                    {src && !preview ? (
+                        <img className='sticker-image' draggable={false} src={src} alt='' />
+                    ) : (
+                        <img
+                            className={classNames('sticker-image', { 'media-blurred': isBlurred && blur })}
+                            draggable={false}
+                            src={thumbnailSrc}
+                            alt=''
+                        />
+                    )}
+                </>
+            );
+        }
 
         const stickerStyle = {
-            width: fitSize.width,
-            height: fitSize.height,
+            width: fitSize ? fitSize.width : 0,
+            height: fitSize ? fitSize.height : 0,
             ...style
         };
-
-        const content = isAnimated ? (
-            <>
-                {animationData ? (
-                    <Lottie
-                        ref={this.lottieRef}
-                        options={{
-                            autoplay: autoplay,
-                            loop: true,
-                            animationData,
-                            renderer: 'svg',
-                            rendererSettings: {
-                                preserveAspectRatio: 'xMinYMin slice', // Supports the same options as the svg element's preserveAspectRatio property
-                                clearCanvas: false,
-                                progressiveLoad: true, // Boolean, only svg renderer, loads dom elements when needed. Might speed up initialization for large number of elements.
-                                hideOnTransparent: true, //Boolean, only svg renderer, hides elements when opacity reaches 0 (defaults to true)
-                                className: 'lottie-svg'
-                            }
-                        }}
-                        eventListeners={[
-                            {
-                                eventName: 'loopComplete',
-                                callback: this.handleAnimationLoopComplete
-                            }
-                        ]}
-                        onMouseOut={this.handleAnimationMouseOut}
-                    />
-                ) : (
-                    <img
-                        className={classNames('sticker-image', { 'media-blurred': isBlurred && blur })}
-                        draggable={false}
-                        src={thumbnailSrc}
-                        alt=''
-                    />
-                )}
-            </>
-        ) : (
-            <>
-                {src && !preview ? (
-                    <img className='sticker-image' draggable={false} src={src} alt='' />
-                ) : (
-                    <img
-                        className={classNames('sticker-image', { 'media-blurred': isBlurred && blur })}
-                        draggable={false}
-                        src={thumbnailSrc}
-                        alt=''
-                    />
-                )}
-            </>
-        );
 
         return (
             <div

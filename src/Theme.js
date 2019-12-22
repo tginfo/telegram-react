@@ -8,8 +8,8 @@
 import React from 'react';
 import blue from '@material-ui/core/colors/blue';
 import createMuiTheme from '@material-ui/core/styles/createMuiTheme';
-import MuiThemeProvider from '@material-ui/core/styles/MuiThemeProvider';
-import StylesProvider from '@material-ui/styles/StylesProvider';
+import { ThemeProvider as MuiThemeProvider } from '@material-ui/core/styles';
+import { StylesProvider } from '@material-ui/core/styles';
 import { getDisplayName } from './Utils/HOC';
 import Cookies from 'universal-cookie';
 import ApplicationStore from './Stores/ApplicationStore';
@@ -43,7 +43,7 @@ function withTheme(WrappedComponent) {
         }
 
         componentWillUnmount() {
-            ApplicationStore.removeListener('clientUpdateThemeChanging', this.onClientUpdateThemeChanging);
+            ApplicationStore.off('clientUpdateThemeChanging', this.onClientUpdateThemeChanging);
         }
 
         onClientUpdateThemeChanging = update => {
@@ -70,7 +70,7 @@ function withTheme(WrappedComponent) {
             const { theme } = this.state;
 
             return (
-                <StylesProvider injectFirst>
+                <StylesProvider injectFirst={true}>
                     <MuiThemeProvider theme={theme}>
                         <WrappedComponent {...this.props} />
                     </MuiThemeProvider>

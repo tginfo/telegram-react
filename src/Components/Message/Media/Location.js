@@ -20,7 +20,7 @@ class Location extends React.Component {
     }
 
     componentWillUnmount() {
-        FileStore.removeListener('clientUpdateLocationBlob', this.onClientUpdateLocationBlob);
+        FileStore.off('clientUpdateLocationBlob', this.onClientUpdateLocationBlob);
     }
 
     onClientUpdateLocationBlob = update => {
@@ -34,6 +34,10 @@ class Location extends React.Component {
         if (file.id === fileId) {
             this.forceUpdate();
         }
+    };
+
+    handleClick = event => {
+        event.stopPropagation();
     };
 
     render() {
@@ -55,7 +59,7 @@ class Location extends React.Component {
 
         return (
             <div className='location' style={locationStyle}>
-                <a href={source} target='_blank' rel='noopener noreferrer'>
+                <a href={source} target='_blank' rel='noopener noreferrer' onClick={this.handleClick}>
                     <div className='location-wrapper'>
                         <img className='location-image' draggable={false} alt={source} src={src} />
                         <div className='location-icon'>

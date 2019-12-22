@@ -38,7 +38,7 @@ class StickersPickerHeader extends React.Component {
     }
 
     componentWillUnmount() {
-        StickerStore.removeListener('clientUpdateStickerSetPosition', this.onClientUpdateStickerSetPosition);
+        StickerStore.off('clientUpdateStickerSetPosition', this.onClientUpdateStickerSetPosition);
     }
 
     onClientUpdateStickerSetPosition = update => {
@@ -118,6 +118,7 @@ class StickersPickerHeader extends React.Component {
             <Sticker
                 key={x.sticker.id}
                 className='stickers-picker-header-sticker'
+                style={{ width: 32, height: 32 }}
                 sticker={x}
                 play={false}
                 autoplay={false}

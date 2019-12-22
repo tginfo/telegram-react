@@ -68,10 +68,10 @@ const styles = theme => ({
         margin: '8px -2px 8px 12px'
     },
     nested: {
-        // paddingLeft: theme.spacing.unit * 4,
+        // paddingLeft: theme.spacing(4),
     },
     close: {
-        padding: theme.spacing.unit / 2
+        padding: theme.spacing(0.5)
     },
     listItem: {
         padding: '11px 22px'
@@ -82,7 +82,7 @@ class ChatDetails extends React.Component {
     constructor(props) {
         super(props);
 
-        console.log('ChatDetails.ctor', this.props.counters);
+        // console.log('ChatDetails.ctor', this.props.counters);
 
         this.chatDetailsListRef = React.createRef();
 
@@ -169,10 +169,10 @@ class ChatDetails extends React.Component {
     }
 
     componentWillUnmount() {
-        UserStore.removeListener('updateUserStatus', this.onUpdateUserStatus);
-        UserStore.removeListener('updateUserFullInfo', this.onUpdateUserFullInfo);
-        BasicGroupStore.removeListener('updateBasicGroupFullInfo', this.onUpdateBasicGroupFullInfo);
-        SupergroupStore.removeListener('updateSupergroupFullInfo', this.onUpdateSupergroupFullInfo);
+        UserStore.off('updateUserStatus', this.onUpdateUserStatus);
+        UserStore.off('updateUserFullInfo', this.onUpdateUserFullInfo);
+        BasicGroupStore.off('updateBasicGroupFullInfo', this.onUpdateBasicGroupFullInfo);
+        SupergroupStore.off('updateSupergroupFullInfo', this.onUpdateSupergroupFullInfo);
     }
 
     onUpdateBasicGroupFullInfo = update => {
@@ -596,7 +596,6 @@ class ChatDetails extends React.Component {
                                             <GroupIcon />
                                         </ListItemIcon>
                                         <ListItemText
-                                            inset
                                             primary={
                                                 <Typography variant='inherit' noWrap>
                                                     {groupInCommonCount === 1

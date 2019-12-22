@@ -17,8 +17,7 @@ import Placeholder from './Placeholder';
 import ScrollDownButton from './ScrollDownButton';
 import ServiceMessage from '../Message/ServiceMessage';
 import StickersHint from './StickersHint';
-import { getChat } from '../../Actions/Chat';
-import { throttle, getPhotoSize, itemsInView, historyEquals, isAuthorizationReady } from '../../Utils/Common';
+import { throttle, getPhotoSize, itemsInView, historyEquals } from '../../Utils/Common';
 import { loadChatsContent, loadDraftContent, loadMessageContents } from '../../Utils/File';
 import { canMessageBeEdited, filterDuplicateMessages, filterMessages } from '../../Utils/Message';
 import { isServiceMessage } from '../../Utils/ServiceMessage';
@@ -85,7 +84,7 @@ class MessagesList extends React.Component {
                 prevMessageId: props.messageId,
                 clearHistory: false,
                 selectionActive: false,
-                separatorMessageId: 0,
+                separatorMessageId: props.chatId !== state.prevChatId ? 0 : state.separatorMessageId,
                 scrollDownVisible:
                     props.chatId === state.prevChatId && (state.scrollDownVisible || state.replyHistory.length > 0),
                 replyHistory: props.chatId !== state.prevChatId ? [] : state.replyHistory
@@ -139,55 +138,57 @@ class MessagesList extends React.Component {
         const { playerOpened, history, dragging, clearHistory, selectionActive, scrollDownVisible } = this.state;
 
         if (nextProps.theme !== theme) {
-            // console.log('MessagesList.shouldComponentUpdate theme');
+            // console.log('[ml] shouldComponentUpdate theme');
             return true;
         }
 
         if (nextProps.chatId !== chatId) {
-            // console.log('MessagesList.shouldComponentUpdate chatId');
+            // console.log('[ml] shouldComponentUpdate chatId');
             return true;
         }
 
         if (nextProps.messageId !== messageId) {
-            // console.log('MessagesList.shouldComponentUpdate messageId');
+            // console.log('[ml] shouldComponentUpdate messageId');
             return true;
         }
 
         if (nextState.scrollDownVisible !== scrollDownVisible) {
-            // console.log('MessagesList.shouldComponentUpdate scrollDownVisible');
+            // console.log('[ml] shouldComponentUpdate scrollDownVisible');
             return true;
         }
 
         if (nextState.playerOpened !== playerOpened) {
-            // console.log('MessagesList.shouldComponentUpdate playerOpened');
+            // console.log('[ml] shouldComponentUpdate playerOpened');
             return true;
         }
 
         if (!historyEquals(nextState.history, history)) {
-            // console.trace('MessagesList.shouldComponentUpdate history', nextState.history, history);
+            // console.trace('[ml] shouldComponentUpdate history', nextState.history, history);
             return true;
         }
 
         if (nextState.dragging !== dragging) {
-            // console.log('MessagesList.shouldComponentUpdate dragging');
+            // console.log('[ml] shouldComponentUpdate dragging');
             return true;
         }
 
         if (nextState.clearHistory !== clearHistory) {
-            // console.log('MessagesList.shouldComponentUpdate clearHistory');
+            // console.log('[ml] shouldComponentUpdate clearHistory');
             return true;
         }
 
         if (nextState.selectionActive !== selectionActive) {
-            // console.log('MessagesList.shouldComponentUpdate selectionActive');
+            // console.log('[ml] shouldComponentUpdate selectionActive');
             return true;
         }
 
-        // console.log('MessagesList.shouldComponentUpdate false');
+        // console.log('[ml] shouldComponentUpdate false');
         return false;
     }
 
     componentDidMount() {
+        // document.addEventListener('keydown', this.onKeyDown, false);
+
         AppStore.on('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
         AppStore.on('clientUpdateDialogsReady', this.onClientUpdateDialogsReady);
         ChatStore.on('clientUpdateClearHistory', this.onClientUpdateClearHistory);
@@ -206,6 +207,8 @@ class MessagesList extends React.Component {
     }
 
     componentWillUnmount() {
+        // document.removeEventListener('keydown', this.onKeyDown, false);
+
         AppStore.off('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
         AppStore.off('clientUpdateDialogsReady', this.onClientUpdateDialogsReady);
         ChatStore.off('clientUpdateClearHistory', this.onClientUpdateClearHistory);
@@ -222,6 +225,17 @@ class MessagesList extends React.Component {
         PlayerStore.off('clientUpdateMediaEnding', this.onClientUpdateMediaEnding);
         PlayerStore.off('clientUpdateMediaEnd', this.onClientUpdateMediaEnd);
     }
+
+    onKeyDown = event => {
+        // if (event.keyCode === 27) {
+        //     if (MessageStore.selectedItems.size > 0) {
+        //         console.log('[k] messagesList onKeyDown');
+        //         clearSelection();
+        //         event.stopPropagation();
+        //         event.preventDefault();
+        //     }
+        // }
+    };
 
     onClientUpdateTryEditMessage = async update => {
         if (this.completed) {
@@ -562,22 +576,25 @@ class MessagesList extends React.Component {
             MessageStore.setItems(result.messages);
             result.messages.reverse();
 
-            let separatorMessageId = Number.MAX_VALUE;
-            if (chat && chat.unread_count > 1) {
-                for (let i = result.messages.length - 1; i >= 0; i--) {
-                    const { id } = result.messages[i];
-                    if (
-                        !result.messages[i].is_outgoing &&
-                        id > chat.last_read_inbox_message_id &&
-                        id < separatorMessageId
-                    ) {
-                        separatorMessageId = id;
-                    } else {
-                        break;
+            let separatorMessageId = this.state.separatorMessageId;
+            if (chatId !== previousChatId) {
+                separatorMessageId = Number.MAX_VALUE;
+                if (chat && chat.unread_count > 1) {
+                    for (let i = result.messages.length - 1; i >= 0; i--) {
+                        const { id } = result.messages[i];
+                        if (
+                            !result.messages[i].is_outgoing &&
+                            id > chat.last_read_inbox_message_id &&
+                            id < separatorMessageId
+                        ) {
+                            separatorMessageId = id;
+                        } else {
+                            break;
+                        }
                     }
                 }
+                separatorMessageId = separatorMessageId === Number.MAX_VALUE ? 0 : separatorMessageId;
             }
-            separatorMessageId = separatorMessageId === Number.MAX_VALUE ? 0 : separatorMessageId;
 
             let scrollBehavior = ScrollBehaviorEnum.SCROLL_TO_BOTTOM;
             if (messageId) {
@@ -1041,16 +1058,17 @@ class MessagesList extends React.Component {
         //     chatId=${chatId} messageId=${messageId}
         //     list.scrollTop=${list.scrollTop}
         //     list.offsetHeight=${list.offsetHeight}
-        //     list.scrollHeight=${list.scrollHeight}`
+        //     list.scrollHeight=${list.scrollHeight}`,
+        //     this.itemsMap
         // );
 
         let scrolled = false;
         for (let i = 0; i < history.length; i++) {
-            let itemComponent = this.itemsMap.get(i);
-            let item = ReactDOM.findDOMNode(itemComponent);
-            if (item) {
+            const itemComponent = this.itemsMap.get(i);
+            const node = ReactDOM.findDOMNode(itemComponent);
+            if (node) {
                 if (itemComponent.props.messageId === messageId) {
-                    list.scrollTop = item.offsetTop - list.offsetHeight / 2.0;
+                    list.scrollTop = node.offsetTop - list.offsetHeight / 2.0;
                     scrolled = true;
                     break;
                 }
@@ -1065,9 +1083,9 @@ class MessagesList extends React.Component {
         //     list.scrollHeight=${list.scrollHeight}`
         // );
 
-        if (!scrolled) {
-            this.scrollToBottom();
-        }
+        // if (!scrolled) {
+        //     this.scrollToBottom();
+        // }
     };
 
     scrollToBottom = () => {
@@ -1149,8 +1167,7 @@ class MessagesList extends React.Component {
         MessageStore.setItems(result.messages);
         result.messages.reverse();
 
-        let separatorMessageId = 0;
-        this.replace(separatorMessageId, result.messages, () => {
+        this.replace(this.state.separatorMessageId, result.messages, () => {
             this.handleScrollBehavior(ScrollBehaviorEnum.SCROLL_TO_BOTTOM, this.snapshot);
         });
 
@@ -1192,9 +1209,9 @@ class MessagesList extends React.Component {
         const { classes, chatId } = this.props;
         const { history, separatorMessageId, clearHistory, selectionActive, scrollDownVisible } = this.state;
 
-        // console.log('MessagesList.render scrollDown', this.props.chatId, this.props.messageId, scrollDownVisible, history.length);
+        // console.log('[ml] render ', this.props.chatId, this.props.messageId, separatorMessageId);
 
-        const isChannel = isChannelChat(chatId);
+        // const isChannel = isChannelChat(chatId);
 
         let prevShowDate = false;
         this.itemsMap.clear();
@@ -1228,7 +1245,7 @@ class MessagesList extends React.Component {
                   } else {
                       const showTitle =
                           prevShowDate ||
-                          isChannel ||
+                          isChannelChat(x.chat_id) ||
                           i === 0 ||
                           (prevMessage &&
                               (isServiceMessage(prevMessage) ||
@@ -1247,8 +1264,6 @@ class MessagesList extends React.Component {
                           />
                       );
                   }
-
-                  // return m;
 
                   return (
                       <div key={`chat_id=${x.chat_id} message_id=${x.id}`}>
