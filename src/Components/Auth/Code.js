@@ -6,43 +6,41 @@
  */
 
 import React from 'react';
-import { compose } from 'recompose';
+import classNames from 'classnames';
 import { withTranslation } from 'react-i18next';
-import withStyles from '@material-ui/core/styles/withStyles';
-import Button from '@material-ui/core/Button';
-import FormControl from '@material-ui/core/FormControl';
-import FormHelperText from '@material-ui/core/FormHelperText/FormHelperText';
+import Typography from '@material-ui/core/Typography';
+import IconButton from '@material-ui/core/IconButton';
+import EditIcon from '@material-ui/icons/EditOutlined';
 import TextField from '@material-ui/core/TextField';
 import HeaderProgress from '../ColumnMiddle/HeaderProgress';
-import { cleanProgressStatus, formatPhoneNumber, isConnecting } from '../../Utils/Common';
-import ApplicationStore from '../../Stores/ApplicationStore';
+import { cleanProgressStatus, formatPhoneNumber, isConnecting } from './Phone';
+import AppStore from '../../Stores/ApplicationStore';
 import TdLibController from '../../Controllers/TdLibController';
-import './ConfirmCodeControl.css';
+import './Code.css';
 
-const styles = {
-    buttonLeft: {
-        marginRight: '8px',
-        marginTop: '16px'
-    },
-    buttonRight: {
-        marginLeft: '8px',
-        marginTop: '16px'
+class Code extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            connecting: isConnecting(AppStore.connectionState),
+            error: '',
+            loading: false
+        };
+
+        this.inputRef = React.createRef();
     }
-};
-
-class ConfirmCodeControl extends React.Component {
-    state = {
-        connecting: isConnecting(ApplicationStore.connectionState),
-        error: '',
-        loading: false
-    };
 
     componentDidMount() {
-        ApplicationStore.on('updateConnectionState', this.onUpdateConnectionState);
+        TdLibController.clientUpdate({
+            '@type': 'clientUpdateMonkeyIdle'
+        });
+
+        AppStore.on('updateConnectionState', this.onUpdateConnectionState);
     }
 
     componentWillUnmount() {
-        ApplicationStore.off('updateConnectionState', this.onUpdateConnectionState);
+        AppStore.off('updateConnectionState', this.onUpdateConnectionState);
     }
 
     onUpdateConnectionState = update => {
@@ -61,6 +59,7 @@ class ConfirmCodeControl extends React.Component {
     };
 
     handleDone = () => {
+        const { t } = this.props;
         const code = this.code;
 
         this.setState({ loading: true });
@@ -74,12 +73,18 @@ class ConfirmCodeControl extends React.Component {
             .catch(error => {
                 let errorString = null;
                 if (error && error['@type'] === 'error' && error.message) {
-                    errorString = error.message;
+                    if (error.message === 'PHONE_CODE_INVALID') {
+                        errorString = t('InvalidCode');
+                    } else {
+                        errorString = error.message;
+                    }
                 } else {
                     errorString = JSON.stringify(error);
                 }
 
-                this.setState({ error: errorString });
+                this.setState({ error: errorString }, () => {
+                    setTimeout(() => this.inputRef.current.focus(), 100);
+                });
             })
             .finally(() => {
                 this.setState({ loading: false });
@@ -103,7 +108,14 @@ class ConfirmCodeControl extends React.Component {
     }
 
     handleChange = e => {
-        this.code = e.target.value;
+        const prevCode = this.code || '';
+        this.code = e.target.value || '';
+
+        TdLibController.clientUpdate({
+            '@type': 'clientUpdateMonkeyTracking',
+            prevCode,
+            code: this.code
+        });
 
         if (this.code && this.codeLength > 0 && this.code.length === this.codeLength) {
             this.handleNext();
@@ -144,7 +156,7 @@ class ConfirmCodeControl extends React.Component {
         return 0;
     }
 
-    getSubtitle(codeInfo) {
+    getSubtitle(codeInfo, t = k => k) {
         if (!codeInfo) return 'Subtitle';
         if (!codeInfo.type) return 'Subtitle';
 
@@ -167,14 +179,14 @@ class ConfirmCodeControl extends React.Component {
     }
 
     render() {
-        const { classes, codeInfo, t } = this.props;
+        const { codeInfo, t } = this.props;
         const { connecting, loading, error } = this.state;
 
         this.phoneNumber = this.getPhoneNumber(codeInfo);
         this.codeLength = this.getCodeLength(codeInfo);
         const subtitle = this.getSubtitle(codeInfo);
 
-        let title = t('YourCode');
+        let title = 'Title';
         if (connecting) {
             title = cleanProgressStatus(t('Connecting'));
         } else if (this.phoneNumber) {
@@ -182,46 +194,38 @@ class ConfirmCodeControl extends React.Component {
         }
 
         return (
-            <FormControl fullWidth>
-                <div className='authorization-header'>
-                    <span className='authorization-header-content'>{title}</span>
-                    {connecting && <HeaderProgress />}
+            <form className='auth-root' autoComplete='off'>
+                <div className={classNames('code-title', 'auth-title')}>
+                    <Typography variant='body1' className='auth-title-typography'>
+                        <span>{title}</span>
+                        {connecting && <HeaderProgress />}
+                    </Typography>
+                    <IconButton aria-label='edit' onClick={this.handleBack} disabled={loading}>
+                        <EditIcon fontSize='small' />
+                    </IconButton>
                 </div>
-                <div>{subtitle}</div>
+                <Typography variant='body1' className='auth-subtitle' style={{ width: 300 }}>
+                    {subtitle}
+                </Typography>
                 <TextField
+                    classes={{ root: 'auth-input' }}
+                    inputRef={this.inputRef}
+                    variant='outlined'
                     color='primary'
                     disabled={loading}
                     error={Boolean(error)}
+                    helperText={error}
                     fullWidth
                     autoFocus
-                    label=''
-                    margin='normal'
+                    autoComplete='off'
+                    label={t('Code')}
                     maxLength={this.codeLength > 0 ? this.codeLength : 256}
                     onChange={this.handleChange}
                     onKeyPress={this.handleKeyPress}
                 />
-                <FormHelperText id='confirm-code-error-text'>{error}</FormHelperText>
-                <div className='authorization-actions'>
-                    <Button fullWidth className={classes.buttonLeft} onClick={this.handleBack} disabled={loading}>
-                        {t('Back')}
-                    </Button>
-                    <Button
-                        fullWidth
-                        color='primary'
-                        className={classes.buttonRight}
-                        onClick={this.handleNext}
-                        disabled={loading}>
-                        {t('Next')}
-                    </Button>
-                </div>
-            </FormControl>
+            </form>
         );
     }
 }
 
-const enhance = compose(
-    withTranslation(),
-    withStyles(styles, { withTheme: true })
-);
-
-export default enhance(ConfirmCodeControl);
+export default withTranslation()(Code);

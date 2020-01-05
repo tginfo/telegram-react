@@ -57,6 +57,12 @@ const styles = theme => ({
     message: {
         backgroundColor: 'transparent'
     },
+    messageBubble: {
+        background: theme.palette.type === 'dark' ? theme.palette.background.default : '#FFFFFF',
+        '&::after': {
+            background: theme.palette.type === 'dark' ? theme.palette.background.default : '#FFFFFF'
+        }
+    },
     menuListRoot: {
         minWidth: 150
     },
@@ -101,7 +107,7 @@ class Message extends Component {
     }
 
     shouldComponentUpdate(nextProps, nextState) {
-        const { theme, chatId, messageId, sendingState, showUnreadSeparator, showTitle } = this.props;
+        const { theme, chatId, messageId, sendingState, showUnreadSeparator, showTail, showTitle } = this.props;
         const { contextMenu, selected, highlighted, emojiMatches } = this.state;
 
         if (nextProps.theme !== theme) {
@@ -125,6 +131,11 @@ class Message extends Component {
         }
 
         if (nextProps.showUnreadSeparator !== showUnreadSeparator) {
+            // console.log('Message.shouldComponentUpdate true');
+            return true;
+        }
+
+        if (nextProps.showTail !== showTail) {
             // console.log('Message.shouldComponentUpdate true');
             return true;
         }
@@ -419,7 +430,7 @@ class Message extends Component {
 
     render() {
         // console.log('[m] render', this.props.messageId);
-        const { t, classes, chatId, messageId, showUnreadSeparator, showTitle } = this.props;
+        const { t, classes, chatId, messageId, showUnreadSeparator, showTail, showTitle } = this.props;
         const { emojiMatches, selected, highlighted, contextMenu, left, top } = this.state;
 
         const message = MessageStore.get(chatId, messageId);
@@ -427,27 +438,28 @@ class Message extends Component {
 
         const { sending_state, views, date, edit_date, reply_to_message_id, forward_info, sender_user_id } = message;
 
+        const showForward = showMessageForward(chatId, messageId);
         const text = getText(message);
+        const hasTitle = showTitle || showForward || Boolean(reply_to_message_id);
+        const hasCaption = text !== null && text.length > 0;
         const webPage = getWebPage(message);
-        const media = getMedia(message, this.openMedia);
+        const media = getMedia(message, this.openMedia, hasTitle, hasCaption);
         this.unread = getUnread(message);
 
         let tile = null;
-        if (showTitle) {
+        if (showTail) {
             tile = sender_user_id ? (
-                <UserTile userId={sender_user_id} onSelect={this.handleSelectUser} />
+                <UserTile userId={sender_user_id} onSelect={this.handleSelectUser} small />
             ) : (
-                <ChatTile chatId={chatId} onSelect={this.handleSelectChat} />
+                <ChatTile chatId={chatId} onSelect={this.handleSelectChat} small />
             );
         }
-
-        const showForward = showMessageForward(chatId, messageId);
 
         const messageClassName = classNames('message', classes.message, {
             'message-selected': selected,
             [classes.messageSelected]: selected,
             [classes.messageHighlighted]: highlighted && !selected,
-            'message-short': !showTitle
+            'message-short': !tile
         });
 
         const meta = <Meta date={date} editDate={edit_date} views={views} onDateClick={this.handleDateClick} />;
@@ -459,6 +471,8 @@ class Message extends Component {
         const canBeDeleted = message.can_be_deleted_only_for_self || message.can_be_deleted_for_all_users;
         const canBeSelected = !MessageStore.hasSelectedMessage(chatId, messageId);
         const canBeEdited = canMessageBeEdited(chatId, messageId);
+        const withBubble =
+            message.content['@type'] !== 'messageSticker' && message.content['@type'] !== 'messageVideoNote';
 
         return (
             <div
@@ -481,7 +495,11 @@ class Message extends Component {
                         )}
                     </div>
                     {tile}
-                    <div className='message-content'>
+                    <div
+                        className={classNames('message-content', {
+                            'message-bubble': withBubble,
+                            [classes.messageBubble]: withBubble
+                        })}>
                         <div className='message-title'>
                             {showTitle && !showForward && (
                                 <MessageAuthor chatId={chatId} openChat userId={sender_user_id} openUser />
@@ -502,8 +520,10 @@ class Message extends Component {
                             {text}
                         </div>
                         {webPage && <WebPage chatId={chatId} messageId={messageId} openMedia={this.openMedia} />}
+                        {/*{!showTitle && meta}*/}
                     </div>
-                    {!showTitle && meta}
+                    {/*{!showTitle && meta}*/}
+                    {/*{showTail&&<div>tail</div>}*/}
                 </div>
                 <Popover
                     open={contextMenu}

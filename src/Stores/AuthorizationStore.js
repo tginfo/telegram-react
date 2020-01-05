@@ -59,7 +59,28 @@ class AuthorizationStore extends EventEmitter {
         }
     };
 
-    onClientUpdate = update => {};
+    onClientUpdate = update => {
+        switch (update['@type']) {
+            case 'clientUpdateMonkeyIdle': {
+                this.emit(update['@type'], update);
+                break;
+            }
+            case 'clientUpdateMonkeyTracking': {
+                this.emit(update['@type'], update);
+                break;
+            }
+            case 'clientUpdateMonkeyClose': {
+                this.emit(update['@type'], update);
+                break;
+            }
+            case 'clientUpdateMonkeyPeek': {
+                this.emit(update['@type'], update);
+                break;
+            }
+            default:
+                break;
+        }
+    };
 
     addTdLibListener = () => {
         TdLibController.addListener('update', this.onUpdate);

@@ -6,63 +6,68 @@
  */
 
 import React from 'react';
-import classNames from 'classnames';
-import { compose } from 'recompose';
 import { withTranslation } from 'react-i18next';
-import withStyles from '@material-ui/core/styles/withStyles';
 import IconButton from '@material-ui/core/IconButton';
 import InputAdornment from '@material-ui/core/InputAdornment';
 import InputLabel from '@material-ui/core/InputLabel';
-import Input from '@material-ui/core/Input';
+import OutlinedInput from '@material-ui/core/OutlinedInput';
+import Typography from '@material-ui/core/Typography';
 import FormControl from '@material-ui/core/FormControl';
 import FormHelperText from '@material-ui/core/FormHelperText';
 import Button from '@material-ui/core/Button';
 import Visibility from '@material-ui/icons/Visibility';
 import VisibilityOff from '@material-ui/icons/VisibilityOff';
 import HeaderProgress from '../ColumnMiddle/HeaderProgress';
-import { cleanProgressStatus, isConnecting } from '../../Utils/Common';
-import ApplicationStore from '../../Stores/ApplicationStore';
+import { cleanProgressStatus, isConnecting } from './Phone';
+import AppStore from '../../Stores/ApplicationStore';
 import TdLibController from '../../Controllers/TdLibController';
-import './PasswordControl.css';
+import './Password.css';
 
-const styles = theme => ({
-    root: {
-        display: 'flex',
-        flexWrap: 'wrap'
-    },
-    margin: {
-        margin: '16px 0 8px 0'
-    },
-    withoutLabel: {
-        marginTop: theme.spacing(3)
-    },
-    textField: {
-        flexBasis: 200
-    },
-    buttonLeft: {
-        marginRight: '8px',
-        marginTop: '16px'
-    },
-    buttonRight: {
-        marginLeft: '8px',
-        marginTop: '16px'
-    }
-});
-
-class PasswordControl extends React.Component {
-    state = {
-        connecting: isConnecting(ApplicationStore.connectionState),
-        password: '',
-        showPassword: false,
-        error: ''
+function debounce(func, wait, immediate) {
+    let timeout;
+    return function() {
+        let context = this,
+            args = arguments;
+        let later = function() {
+            timeout = null;
+            if (!immediate) {
+                func.apply(context, args);
+            }
+        };
+        let callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) {
+            func.apply(context, args);
+        }
     };
+}
+
+class Password extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            connecting: isConnecting(AppStore.connectionState),
+            password: '',
+            showPassword: false,
+            error: ''
+        };
+
+        this.inputRef = React.createRef();
+        this.sendMonkeyPeek = debounce(this.sendMonkeyPeek, 200, false);
+    }
 
     componentDidMount() {
-        ApplicationStore.on('updateConnectionState', this.onUpdateConnectionState);
+        TdLibController.clientUpdate({
+            '@type': 'clientUpdateMonkeyClose'
+        });
+
+        AppStore.on('updateConnectionState', this.onUpdateConnectionState);
     }
 
     componentWillUnmount() {
-        ApplicationStore.off('updateConnectionState', this.onUpdateConnectionState);
+        AppStore.off('updateConnectionState', this.onUpdateConnectionState);
     }
 
     onUpdateConnectionState = update => {
@@ -101,7 +106,9 @@ class PasswordControl extends React.Component {
                     errorString = JSON.stringify(error);
                 }
 
-                this.setState({ error: errorString });
+                this.setState({ error: errorString }, () => {
+                    setTimeout(() => this.inputRef.current.focus(), 100);
+                });
             })
             .finally(() => {
                 this.setState({ loading: false });
@@ -114,7 +121,16 @@ class PasswordControl extends React.Component {
 
     handleClickShowPassword = () => {
         this.setState({ showPassword: !this.state.showPassword });
+
+        this.sendMonkeyPeek();
     };
+
+    sendMonkeyPeek() {
+        TdLibController.clientUpdate({
+            '@type': 'clientUpdateMonkeyPeek',
+            peek: this.state.showPassword
+        });
+    }
 
     handleChange = e => {
         this.password = e.target.value;
@@ -128,29 +144,33 @@ class PasswordControl extends React.Component {
     };
 
     render() {
-        const { classes, passwordHint, t } = this.props;
+        const { passwordHint, t } = this.props;
         const { connecting, loading, error, showPassword } = this.state;
 
-        let title = t('YourPassword');
+        let title = t('EnterPassword');
         if (connecting) {
             title = cleanProgressStatus(t('Connecting'));
         }
 
         return (
-            <div>
-                <div className='authorization-header'>
-                    <span className='authorization-header-content'>{title}</span>
+            <form className='auth-root' autoComplete='off'>
+                <Typography variant='body1' className='auth-title'>
+                    <span>{title}</span>
                     {connecting && <HeaderProgress />}
-                </div>
-                <div>Please enter your cloud password.</div>
-                <FormControl fullWidth className={classNames(classes.margin, classes.textField)}>
+                </Typography>
+                <Typography variant='body1' className='auth-subtitle' style={{ width: 235 }}>
+                    {t('YourAccountProtectedWithPassword')}
+                </Typography>
+                <FormControl className='auth-input' fullWidth variant='outlined'>
                     <InputLabel htmlFor='adornment-password' error={Boolean(error)}>
-                        Your cloud password
+                        {t('LoginPassword')}
                     </InputLabel>
-                    <Input
+                    <OutlinedInput
                         fullWidth
                         autoFocus
+                        autoComplete='off'
                         id='adornment-password'
+                        inputRef={this.inputRef}
                         type={showPassword ? 'text' : 'password'}
                         disabled={loading}
                         error={Boolean(error)}
@@ -161,41 +181,34 @@ class PasswordControl extends React.Component {
                                 <IconButton
                                     aria-label='Toggle password visibility'
                                     onClick={this.handleClickShowPassword}
-                                    onMouseDown={this.handleMouseDownPassword}>
-                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                    onMouseDown={this.handleMouseDownPassword}
+                                    edge='end'>
+                                    {showPassword ? <Visibility /> : <VisibilityOff />}
                                 </IconButton>
                             </InputAdornment>
                         }
+                        labelWidth={70}
                     />
+                    {passwordHint && <FormHelperText id='password-hint-text'>{passwordHint}</FormHelperText>}
+                    {error && (
+                        <FormHelperText id='password-error-text' error>
+                            {error}
+                        </FormHelperText>
+                    )}
                 </FormControl>
-                {passwordHint && (
-                    <FormHelperText id='password-hint-text'>
-                        <span className='password-hint-label'>Hint: </span>
-                        {passwordHint}
-                    </FormHelperText>
-                )}
-                <FormHelperText id='password-error-text'>{error}</FormHelperText>
-                <div className='authorization-actions'>
-                    <Button fullWidth className={classes.buttonLeft} onClick={this.handleBack} disabled={loading}>
-                        {t('Back')}
-                    </Button>
-                    <Button
-                        fullWidth
-                        color='primary'
-                        className={classes.buttonRight}
-                        onClick={this.handleNext}
-                        disabled={loading}>
-                        {t('Next')}
-                    </Button>
-                </div>
-            </div>
+                <Button
+                    classes={{ root: 'auth-button' }}
+                    fullWidth
+                    color='primary'
+                    variant='contained'
+                    disableElevation
+                    onClick={this.handleNext}
+                    disabled={loading}>
+                    {t('Next')}
+                </Button>
+            </form>
         );
     }
 }
 
-const enhance = compose(
-    withTranslation(),
-    withStyles(styles, { withTheme: true })
-);
-
-export default enhance(PasswordControl);
+export default withTranslation()(Password);
