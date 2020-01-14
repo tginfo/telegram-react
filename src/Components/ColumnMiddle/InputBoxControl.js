@@ -11,12 +11,11 @@ import { compose } from 'recompose';
 import { withTranslation } from 'react-i18next';
 import withStyles from '@material-ui/core/styles/withStyles';
 import emojiRegex from 'emoji-regex';
-import DoneIcon from '@material-ui/icons/Done';
+import DoneIcon from '../../Assets/Icons/Done';
 import IconButton from '@material-ui/core/IconButton';
-import Fab from '@material-ui/core/Fab';
 import Button from '@material-ui/core/Button';
-import InsertEmoticonIcon from '@material-ui/icons/InsertEmoticon';
-import SendIcon from '@material-ui/icons/Send';
+import InsertEmoticonIcon from '../../Assets/Icons/Smile';
+import SendIcon from '../../Assets/Icons/Send';
 import AttachButton from './../ColumnMiddle/AttachButton';
 import CreatePollDialog from '../Popup/CreatePollDialog';
 import EditUrlDialog from '../Popup/EditUrlDialog';
@@ -50,17 +49,6 @@ const styles = theme => ({
         '&::after': {
             background: theme.palette.type === 'dark' ? theme.palette.background.default : '#FFFFFF'
         }
-    },
-    sendButton: {
-        margin: 0,
-        minWidth: 54,
-        height: 54,
-        borderRadius: '50%',
-        boxShadow: '0 1px 2px 0 rgba(16,35,47,.15)',
-        color: '#fff'
-    },
-    closeIconButton: {
-        margin: 0
     },
     ...borderStyle(theme)
 });
@@ -905,13 +893,13 @@ class InputBoxControl extends Component {
 
     async editMessageMedia(content, callback) {
         const { chatId, editMessageId } = this.state;
-        console.log('[em] editMessageMedia start', chatId, editMessageId, content);
+        // console.log('[em] editMessageMedia start', chatId, editMessageId, content);
 
         if (!chatId) return;
         if (!editMessageId) return;
         if (!content) return;
 
-        console.log('[em] editMessageMedia send', content);
+        // console.log('[em] editMessageMedia send', content);
         const result = await TdLibController.send({
             '@type': 'editMessageMedia',
             chat_id: chatId,
@@ -1242,7 +1230,7 @@ class InputBoxControl extends Component {
                         variant='contained'
                         disableElevation
                         color='primary'
-                        className={classes.sendButton}
+                        className='inputbox-send-button'
                         aria-label='Send'
                         size='small'
                         onClick={this.handleSubmit}>

@@ -19,8 +19,20 @@ import DialogContent from './DialogContent';
 import DialogBadge from './DialogBadge';
 import DialogTitle from './DialogTitle';
 import DialogMeta from './DialogMeta';
-import { isChatMuted, isChatSecret, isChatUnread } from '../../Utils/Chat';
-import { toggleChatIsMarkedAsUnread, toggleChatIsPinned, toggleChatNotificationSettings } from '../../Actions/Chat';
+import {
+    canSetChatChatList,
+    isArchivedChat,
+    isChatArchived,
+    isChatMuted,
+    isChatSecret,
+    isChatUnread
+} from '../../Utils/Chat';
+import {
+    setChatChatList,
+    toggleChatIsMarkedAsUnread,
+    toggleChatIsPinned,
+    toggleChatNotificationSettings
+} from '../../Actions/Chat';
 import { openChat } from '../../Actions/Client';
 import { viewMessages } from '../../Actions/Message';
 import ApplicationStore from '../../Stores/ApplicationStore';
@@ -161,10 +173,12 @@ class Dialog extends Component {
             const chat = ChatStore.get(chatId);
             const { is_pinned } = chat;
             const canTogglePin = (await this.canPinChats(chatId)) || is_pinned;
+            const canToggleArchive = canSetChatChatList(chatId);
 
             this.setState({
                 contextMenu: true,
                 canTogglePin,
+                canToggleArchive,
                 left,
                 top
             });
@@ -188,27 +202,26 @@ class Dialog extends Component {
     };
 
     canPinChats = async chatId => {
-        const chat = ChatStore.get(chatId);
-        if (!chat) return false;
-
-        const pinnedSumMaxOption = OptionStore.get('pinned_chat_count_max');
+        const pinnedSumMaxOption = isChatArchived(chatId)
+            ? OptionStore.get('pinned_archived_chat_count_max').value
+            : OptionStore.get('pinned_chat_count_max').value;
         if (!pinnedSumMaxOption) return false;
 
         const isSecret = isChatSecret(chatId);
         const chats = await TdLibController.send({
             '@type': 'getChats',
+            chat_list: isChatArchived(chatId) ? { '@type': 'chatListArchive' } : { '@type': 'chatListMain' },
             offset_order: '9223372036854775807',
             offset_chat_id: 0,
-            limit: 15
+            limit: pinnedSumMaxOption + 10
         });
 
         const pinnedSum = chats.chat_ids.reduce((x, id) => {
             if (isChatSecret(id) !== isSecret) return x;
 
             const chat = ChatStore.get(id);
-            if (!chat) return x;
 
-            return x + (chat.is_pinned ? 1 : 0);
+            return x + (chat && chat.is_pinned ? 1 : 0);
         }, 0);
 
         return pinnedSum < pinnedSumMaxOption.value;
@@ -225,6 +238,15 @@ class Dialog extends Component {
         if (!is_pinned && !this.canPinChats(chatId)) return;
 
         toggleChatIsPinned(chatId, !is_pinned);
+    };
+
+    handleArchive = async event => {
+        this.handleCloseContextMenu(event);
+
+        const { chatId } = this.props;
+        if (!canSetChatChatList(chatId)) return;
+
+        setChatChatList(chatId, { '@type': isChatArchived(chatId) ? 'chatListMain' : 'chatListArchive' });
     };
 
     getViewInfoTitle = () => {
@@ -282,7 +304,7 @@ class Dialog extends Component {
 
     render() {
         const { classes, chatId, showSavedMessages, hidden, t } = this.props;
-        const { contextMenu, left, top, canTogglePin } = this.state;
+        const { contextMenu, left, top, canToggleArchive, canTogglePin } = this.state;
 
         if (hidden) return null;
 
@@ -292,6 +314,7 @@ class Dialog extends Component {
         const isSelected = currentChatId === chatId;
         const isMuted = isChatMuted(chatId);
         const isUnread = isChatUnread(chatId);
+        const isArchived = isChatArchived(chatId);
         return (
             <div
                 ref={this.dialog}
@@ -338,6 +361,11 @@ class Dialog extends Component {
                     }}
                     onMouseDown={e => e.stopPropagation()}>
                     <MenuList classes={{ root: classes.menuListRoot }} onClick={e => e.stopPropagation()}>
+                        {canToggleArchive && (
+                            <MenuItem onClick={this.handleArchive}>
+                                {isArchived ? t('Unarchive') : t('Archive')}
+                            </MenuItem>
+                        )}
                         {canTogglePin && (
                             <MenuItem onClick={this.handlePin}>
                                 {is_pinned ? t('UnpinFromTop') : t('PinToTop')}

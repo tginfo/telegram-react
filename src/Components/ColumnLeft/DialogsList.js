@@ -6,12 +6,15 @@
  */
 
 import React from 'react';
-import CacheManager from '../../Workers/CacheManager';
+import PropTypes from 'prop-types';
+import classNames from 'classnames';
+import withStyles from '@material-ui/core/styles/withStyles';
+import Archive from '../Tile/Archive';
 import Dialog from '../Tile/Dialog';
 import DialogPlaceholder from '../Tile/DialogPlaceholder';
-import { CHAT_SLICE_LIMIT, SCROLL_PRECISION } from '../../Constants';
 import { loadChatsContent } from '../../Utils/File';
 import { isAuthorizationReady, orderCompare } from '../../Utils/Common';
+import { CHAT_SLICE_LIMIT, SCROLL_PRECISION } from '../../Constants';
 import AppStore from '../../Stores/ApplicationStore';
 import BasicGroupStore from '../../Stores/BasicGroupStore';
 import CacheStore from '../../Stores/CacheStore';
@@ -21,6 +24,12 @@ import SupergroupStore from '../../Stores/SupergroupStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './DialogsList.css';
 
+const styles = theme => ({
+    dialogsList: {
+        background: theme.palette.type === 'dark' ? theme.palette.background.default : '#FFFFFF'
+    }
+});
+
 class DialogsList extends React.Component {
     constructor(props) {
         super(props);
@@ -29,10 +38,14 @@ class DialogsList extends React.Component {
 
         this.listRef = React.createRef();
 
+        const { authorizationState, connectionState } = AppStore;
+
         this.state = {
+            showArchive: false,
+            archiveTitle: null,
             chats: [],
-            authorizationState: AppStore.getAuthorizationState(),
-            connectionState: AppStore.getConnectionState(),
+            authorizationState,
+            connectionState,
             fistSliceLoaded: false,
             cacheLoaded: false,
             cacheChats: null
@@ -40,15 +53,34 @@ class DialogsList extends React.Component {
     }
 
     shouldComponentUpdate(nextProps, nextState) {
-        if (nextState.chats !== this.state.chats) {
+        const { theme, open } = this.props;
+        const { showArchive, archiveTitle, chats, firstSliceLoaded, cacheLoaded } = this.state;
+
+        if (nextProps.theme !== theme) {
             return true;
         }
 
-        if (nextState.firstSliceLoaded !== this.state.firstSliceLoaded) {
+        if (nextProps.open !== open) {
             return true;
         }
 
-        if (nextState.cacheLoaded !== this.state.cacheLoaded) {
+        if (nextState.showArchive !== showArchive) {
+            return true;
+        }
+
+        if (nextState.archiveTitle !== archiveTitle) {
+            return true;
+        }
+
+        if (nextState.chats !== chats) {
+            return true;
+        }
+
+        if (nextState.firstSliceLoaded !== firstSliceLoaded) {
+            return true;
+        }
+
+        if (nextState.cacheLoaded !== cacheLoaded) {
             return true;
         }
 
@@ -57,12 +89,15 @@ class DialogsList extends React.Component {
 
     getSnapshotBeforeUpdate(prevProps, prevState) {
         const { current: list } = this.listRef;
+        if (!list) return { scrollTop: 0 };
 
         return { scrollTop: list.scrollTop };
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
         const { current: list } = this.listRef;
+        if (!list) return;
+
         const { scrollTop } = snapshot;
 
         list.scrollTop = scrollTop;
@@ -73,23 +108,58 @@ class DialogsList extends React.Component {
         this.loadCache();
 
         AppStore.on('updateAuthorizationState', this.onUpdateAuthorizationState);
-        ChatStore.on('updateChatDraftMessage', this.onUpdate);
-        ChatStore.on('updateChatIsPinned', this.onUpdate);
-        ChatStore.on('updateChatLastMessage', this.onUpdate);
+        ChatStore.on('updateChatChatList', this.onUpdateChatChatList);
+
+        ChatStore.on('updateChatDraftMessage', this.onUpdateChatOrder);
+        ChatStore.on('updateChatIsPinned', this.onUpdateChatOrder);
+        ChatStore.on('updateChatIsSponsored', this.onUpdateChatOrder);
+        ChatStore.on('updateChatLastMessage', this.onUpdateChatOrder);
         ChatStore.on('updateChatOrder', this.onUpdateChatOrder);
+
         ChatStore.on('clientUpdateFastUpdatingComplete', this.onFastUpdatingComplete);
         ChatStore.on('clientUpdateLeaveChat', this.onClientUpdateLeaveChat);
     }
 
     componentWillUnmount() {
         AppStore.off('updateAuthorizationState', this.onUpdateAuthorizationState);
-        ChatStore.off('updateChatDraftMessage', this.onUpdate);
-        ChatStore.off('updateChatIsPinned', this.onUpdate);
-        ChatStore.off('updateChatLastMessage', this.onUpdate);
+        ChatStore.off('updateChatChatList', this.onUpdateChatChatList);
+
+        ChatStore.off('updateChatDraftMessage', this.onUpdateChatOrder);
+        ChatStore.off('updateChatIsPinned', this.onUpdateChatOrder);
+        ChatStore.off('updateChatIsSponsored', this.onUpdateChatOrder);
+        ChatStore.off('updateChatLastMessage', this.onUpdateChatOrder);
         ChatStore.off('updateChatOrder', this.onUpdateChatOrder);
+
         ChatStore.off('clientUpdateFastUpdatingComplete', this.onFastUpdatingComplete);
         ChatStore.off('clientUpdateLeaveChat', this.onClientUpdateLeaveChat);
     }
+
+    onUpdateChatChatList = update => {
+        const { type } = this.props;
+        const { showArchive: prevShowArchive } = this.state;
+
+        const { loading } = this;
+        if (loading) return;
+
+        const archiveList = ChatStore.chatList.get('chatListArchive');
+        const showArchive = archiveList && archiveList.size > 0;
+        if (type === 'chatListMain') {
+            this.setState({ showArchive, archiveTitle: this.getTitle() }, () => {
+                if (!prevShowArchive && showArchive) {
+                    const { current } = this.listRef;
+                    if (current && current.scrollTop > 0) {
+                        current.scrollTop += 68;
+                    }
+                }
+            });
+
+            if (prevShowArchive && !showArchive) {
+                TdLibController.clientUpdate({
+                    '@type': 'clientUpdateCloseArchive'
+                });
+            }
+        }
+    };
 
     onClientUpdateLeaveChat = update => {
         if (update.inProgress) {
@@ -139,17 +209,25 @@ class DialogsList extends React.Component {
     };
 
     saveCache = () => {
-        const chatIds = this.state.chats.slice(0, 25);
-        CacheStore.saveChats(chatIds);
+        const { onSaveCache } = this.props;
+
+        if (onSaveCache) onSaveCache();
     };
 
     loadCache = async () => {
+        const { type } = this.props;
+        if (type !== 'chatListMain') return;
+
         const cacheChats = await CacheStore.getChats();
         if (!cacheChats) return;
 
+        const archive = ChatStore.chatList.get('chatListArchive');
+
         this.setState({
             cacheLoaded: true,
-            cacheChats
+            cacheChats,
+            showArchive: archive && archive.size > 0,
+            archiveTitle: this.getTitle()
         });
 
         this.loadChatContents(cacheChats.map(x => x.id));
@@ -159,80 +237,54 @@ class DialogsList extends React.Component {
         });
     };
 
-    onUpdateChatOrder = update => {
-        // NOTE: updateChatOrder is primary used to delete chats with order=0
-        // In all other cases use updateChatLastMessage
-
-        if (update.order !== '0') return;
-        const chat = ChatStore.get(update.chat_id);
-        if (!chat) {
-            return;
-        }
-
-        // unselect deleted chat
-        if (update.chat_id === AppStore.getChatId()) {
-            TdLibController.setChatId(0);
-            AppStore.changeChatDetailsVisibility(false);
-        }
-
-        let chatIds = [];
-        for (let i = 0; i < this.state.chats.length; i++) {
-            let chat = ChatStore.get(this.state.chats[i]);
-            if (chat && chat.order !== '0') {
-                switch (chat.type['@type']) {
-                    case 'chatTypeBasicGroup': {
-                        const basicGroup = BasicGroupStore.get(chat.type.basic_group_id);
-                        if (basicGroup.status['@type'] !== 'chatMemberStatusLeft') {
-                            chatIds.push(chat.id);
-                        }
-                        break;
-                    }
-                    case 'chatTypePrivate': {
-                        chatIds.push(chat.id);
-                        break;
-                    }
-                    case 'chatTypeSecret': {
-                        chatIds.push(chat.id);
-                        break;
-                    }
-                    case 'chatTypeSupergroup': {
-                        const supergroup = SupergroupStore.get(chat.type.supergroup_id);
-                        if (supergroup.status['@type'] !== 'chatMemberStatusLeft') {
-                            chatIds.push(chat.id);
-                        }
-                        break;
-                    }
+    getTitle() {
+        const archive = ChatStore.chatList.get('chatListArchive');
+        const chats = [];
+        const chatsOrder = [];
+        if (archive) {
+            for (const chatId of archive.keys()) {
+                const chat = ChatStore.get(chatId);
+                if (chat) {
+                    if (chat.order !== '0') chats.push(chat);
+                    chatsOrder.push({ order: chat.order, id: chat.id, title: chat.title });
                 }
             }
         }
 
-        this.reorderChats(chatIds);
-    };
+        const orderedChats = chats.sort((a, b) => {
+            return orderCompare(b.order, a.order);
+        });
 
-    onUpdate = update => {
-        const { chat_id, order } = update;
-        if (order === '0') return;
-        const chat = ChatStore.get(chat_id);
-        if (!chat || chat.order === '0') {
-            return;
-        }
+        // console.log('[ar] getTitle', orderedChats.map(x => x.title).join(', '), chatsOrder.sort((a, b) => (orderCompare(b.order, a.order))) );
 
+        return orderedChats.map(x => x.title).join(', ');
+    }
+
+    onUpdateChatOrder = update => {
+        const { type } = this.props;
         const { chats } = this.state;
 
-        let newChatIds = [];
-        if (chats.length > 0) {
-            const existingChat = chats.find(x => x === chat_id);
-            if (!existingChat) {
-                const minChatOrder = ChatStore.get(chats[chats.length - 1]).order;
-                if (orderCompare(minChatOrder, chat.order) === 1) {
-                    return;
-                }
-                newChatIds.push(chat.id);
+        const { loading } = this;
+        if (loading) return;
+
+        const { chat_id, order } = update;
+
+        if (type === 'chatListMain') {
+            const archive = ChatStore.chatList.get('chatListArchive');
+            if (archive && archive.has(chat_id)) {
+                this.setState({ archiveTitle: this.getTitle() });
             }
         }
 
-        // get last chat.order values
-        let chatIds = [];
+        const chat = ChatStore.get(chat_id);
+        if (!chat || !chat.chat_list || chat.chat_list['@type'] !== type) {
+            return;
+        }
+
+        // console.log('[dl] onUpdate start', type, loading, update);
+
+        const newChatIds = [];
+        const chatIds = [];
         for (let i = 0; i < chats.length; i++) {
             let chat = ChatStore.get(chats[i]);
             if (chat && chat.order !== '0') {
@@ -263,6 +315,29 @@ class DialogsList extends React.Component {
             }
         }
 
+        if (order === '0') {
+            // unselect deleted chat
+            if (chat_id === AppStore.getChatId()) {
+                TdLibController.setChatId(0);
+                AppStore.changeChatDetailsVisibility(false);
+            }
+        } else {
+            if (chats.length > 0) {
+                const existingChat = chats.find(x => x === chat_id);
+                if (!existingChat) {
+                    // const minChatOrder = ChatStore.get(chats[chats.length - 1]).order;
+                    // if (orderCompare(minChatOrder, chat.order) === 1) {
+                    //     console.log('[dl] onUpdate return 3', type);
+                    //     return;
+                    // }
+                    newChatIds.push(chat_id);
+                }
+            } else {
+                newChatIds.push(chat_id);
+            }
+        }
+
+        // console.log('[dl] onUpdate reorderChats', type, chatIds, newChatIds);
         this.reorderChats(chatIds, newChatIds, () => {
             this.loadChatContents(newChatIds);
             this.saveCache();
@@ -275,7 +350,7 @@ class DialogsList extends React.Component {
         });
 
         if (!DialogsList.isDifferentOrder(this.state.chats, orderedChatIds)) {
-            callback();
+            if (callback) callback();
             return;
         }
 
@@ -303,9 +378,12 @@ class DialogsList extends React.Component {
     };
 
     onLoadNext = async (replace = false) => {
+        const { type } = this.props;
         const { chats } = this.state;
 
-        if (this.loading) return;
+        if (this.loading) {
+            return;
+        }
 
         let offsetOrder = '9223372036854775807'; // 2^63 - 1
         let offsetChatId = 0;
@@ -317,10 +395,10 @@ class DialogsList extends React.Component {
             }
         }
 
-        // console.log('DialogsList.onLoadNext getChats start', offsetChatId, offsetOrder);
         this.loading = true;
         const result = await TdLibController.send({
             '@type': 'getChats',
+            chat_list: { '@type': type },
             offset_chat_id: offsetChatId,
             offset_order: offsetOrder,
             limit: CHAT_SLICE_LIMIT
@@ -330,7 +408,6 @@ class DialogsList extends React.Component {
                 TdLibController.clientUpdate({ '@type': 'clientUpdateDialogsReady' });
             }
         });
-        // console.log('DialogsList.onLoadNext getChats stop', offsetChatId, offsetOrder);
         // TdLibController.send({
         //     '@type': 'getChats',
         //     offset_chat_id: offsetChatId,
@@ -362,7 +439,10 @@ class DialogsList extends React.Component {
     }
 
     appendChats(chats, callback) {
-        if (chats.length === 0) return;
+        if (chats.length === 0) {
+            if (callback) callback();
+            return;
+        }
 
         this.setState({ chats: this.state.chats.concat(chats), firstSliceLoaded: true }, callback);
     }
@@ -377,7 +457,11 @@ class DialogsList extends React.Component {
     }
 
     render() {
-        const { chats, firstSliceLoaded, cacheLoaded, cacheChats } = this.state;
+        const { classes, type, open } = this.props;
+        const { showArchive, archiveTitle, chats, firstSliceLoaded, cacheLoaded, cacheChats } = this.state;
+
+        // console.log('[dl] render', type, open, chats, cacheChats);
+        if (!open) return null;
 
         let dialogs = null;
         if (firstSliceLoaded) {
@@ -385,15 +469,26 @@ class DialogsList extends React.Component {
         } else if (cacheLoaded) {
             dialogs = cacheChats.map(x => <Dialog key={x.id} chatId={x.id} hidden={this.hiddenChats.has(x.id)} />);
         } else {
-            dialogs = Array.from(Array(10)).map((x, index) => <DialogPlaceholder key={index} index={index} />);
+            if (type === 'chatListMain') {
+                dialogs = Array.from(Array(10)).map((x, index) => <DialogPlaceholder key={index} index={index} />);
+            }
         }
 
         return (
-            <div ref={this.listRef} className='dialogs-list' onScroll={this.handleScroll}>
+            <div
+                ref={this.listRef}
+                className={classNames('dialogs-list', classes.dialogsList)}
+                onScroll={this.handleScroll}>
+                {showArchive && <Archive title={archiveTitle} />}
                 {dialogs}
             </div>
         );
     }
 }
 
-export default DialogsList;
+DialogsList.propTypes = {
+    type: PropTypes.oneOf(['chatListMain', 'chatListArchive']).isRequired,
+    items: PropTypes.array
+};
+
+export default withStyles(styles, { withTheme: true })(DialogsList);

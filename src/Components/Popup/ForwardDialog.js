@@ -34,9 +34,6 @@ import './ForwardDialog.css';
 import { clearSelection } from '../../Actions/Client';
 
 const styles = theme => ({
-    close: {
-        padding: theme.spacing(0.5)
-    },
     dialog: {
         color: theme.palette.text.primary
     },
@@ -148,7 +145,7 @@ class ForwardDialog extends React.Component {
     handleScheduledAction = (key, message, action) => {
         if (!key) return;
 
-        const { enqueueSnackbar, classes } = this.props;
+        const { enqueueSnackbar } = this.props;
         if (!enqueueSnackbar) return;
 
         const TRANSITION_DELAY = 150;
@@ -162,7 +159,7 @@ class ForwardDialog extends React.Component {
                         key='close'
                         aria-label='Close'
                         color='inherit'
-                        className={classes.close}
+                        className='notification-close-button'
                         onClick={() => ApplicationStore.removeScheduledAction(key)}>
                         <CloseIcon />
                     </IconButton>
@@ -317,7 +314,7 @@ class ForwardDialog extends React.Component {
             this.targetChats.set(chatId, chatId);
         }
 
-        console.log(this.targetChats);
+        // console.log(this.targetChats);
 
         this.forceUpdate();
     };
