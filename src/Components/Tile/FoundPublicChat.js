@@ -20,15 +20,9 @@ const styles = theme => ({
     listItem: {
         padding: 0
     },
-    verifiedIcon: {
-        color: theme.palette.primary.main
-    },
     foundPublicChatActive: {
         color: '#fff',
-        backgroundColor: theme.palette.primary.main,
-        '& $verifiedIcon': {
-            color: '#fff'
-        }
+        backgroundColor: theme.palette.primary.main
     },
     foundPublicChatSubtitle: {
         color: theme.palette.text.secondary
@@ -96,12 +90,12 @@ class FoundPublicChat extends React.Component {
                 <div
                     className={classNames('found-public-chat', {
                         [classes.foundPublicChatActive]: chatId === selectedChatId,
-                        'accent-background': chatId === selectedChatId
+                        'item-selected': chatId === selectedChatId
                     })}>
                     <ChatTile chatId={chatId} />
                     <div className='dialog-inner-wrapper'>
                         <div className='tile-first-row'>
-                            <DialogTitle chatId={chatId} classes={{ verifiedIcon: classes.verifiedIcon }} />
+                            <DialogTitle chatId={chatId} />
                         </div>
                         <div className='tile-second-row'>
                             <div className={classNames('dialog-content', classes.foundPublicChatSubtitle)}>

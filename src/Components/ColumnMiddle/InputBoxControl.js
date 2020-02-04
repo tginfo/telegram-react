@@ -7,9 +7,7 @@
 
 import React, { Component } from 'react';
 import classNames from 'classnames';
-import { compose } from 'recompose';
 import { withTranslation } from 'react-i18next';
-import withStyles from '@material-ui/core/styles/withStyles';
 import emojiRegex from 'emoji-regex';
 import DoneIcon from '../../Assets/Icons/Done';
 import IconButton from '@material-ui/core/IconButton';
@@ -23,7 +21,6 @@ import InputBoxHeader from './InputBoxHeader';
 import PasteFilesDialog from '../Popup/PasteFilesDialog';
 import EditMediaDialog from '../Popup/EditMediaDialog';
 import OutputTypingManager from '../../Utils/OutputTypingManager';
-import { borderStyle } from '../Theme';
 import { draftEquals, getChatDraft, getChatDraftReplyToMessageId, isMeChat, isPrivateChat } from '../../Utils/Chat';
 import { findLastTextNode, focusInput } from '../../Utils/DOM';
 import { isEditedMedia } from '../../Utils/Media';
@@ -39,19 +36,6 @@ import TdLibController from '../../Controllers/TdLibController';
 import './InputBoxControl.css';
 
 const EmojiPickerButton = React.lazy(() => import('./../ColumnMiddle/EmojiPickerButton'));
-
-const styles = theme => ({
-    inputboxBackground: {
-        background: theme.palette.type === 'dark' ? theme.palette.grey[900] : '#e6ebee'
-    },
-    inputboxBubble: {
-        background: theme.palette.type === 'dark' ? theme.palette.background.default : '#FFFFFF',
-        '&::after': {
-            background: theme.palette.type === 'dark' ? theme.palette.background.default : '#FFFFFF'
-        }
-    },
-    ...borderStyle(theme)
-});
 
 class InputBoxControl extends Component {
     constructor(props) {
@@ -69,16 +53,7 @@ class InputBoxControl extends Component {
             editMessageId: 0
         };
 
-        document.addEventListener(
-            'selectionchange',
-            () => {
-                // console.log('[ed] selectionchange', document.activeElement);
-                if (document.activeElement === this.newMessageRef.current) {
-                    this.saveSelection();
-                }
-            },
-            true
-        );
+        document.execCommand('defaultParagraphSeparator', false, 'br');
     }
 
     shouldComponentUpdate(nextProps, nextState) {
@@ -147,7 +122,16 @@ class InputBoxControl extends Component {
         this.setChatDraftMessage(draftMessage);
     }
 
+    selectionChangeListener = () => {
+        // console.log('[ed] selectionchange', document.activeElement);
+        if (document.activeElement === this.newMessageRef.current) {
+            this.saveSelection();
+        }
+    };
+
     componentDidMount() {
+        document.addEventListener('selectionchange', this.selectionChangeListener, true);
+
         AppStore.on('clientUpdateChatId', this.onClientUpdateChatId);
         AppStore.on('clientUpdateEditMessage', this.onClientUpdateEditMessage);
         AppStore.on('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
@@ -169,6 +153,8 @@ class InputBoxControl extends Component {
         MessageStore.off('clientUpdateReply', this.onClientUpdateReply);
         MessageStore.off('updateDeleteMessages', this.onUpdateDeleteMessages);
         StickerStore.off('clientUpdateStickerSend', this.onClientUpdateStickerSend);
+
+        document.removeEventListener('selectionchange', this.selectionChangeListener, true);
     }
 
     onUpdateDeleteMessages = update => {
@@ -451,7 +437,7 @@ class InputBoxControl extends Component {
         const element = this.newMessageRef.current;
         if (!element) return;
 
-        const { innerHTML } = element;
+        let { innerHTML } = element;
 
         element.innerText = null;
         this.handleInput();
@@ -463,6 +449,10 @@ class InputBoxControl extends Component {
 
         if (!innerHTML) return;
         if (!innerHTML.trim()) return;
+
+        innerHTML = innerHTML.replace(/<div><br><\/div>/gi, '<br>');
+        innerHTML = innerHTML.replace(/<div>/gi, '<br>');
+        innerHTML = innerHTML.replace(/<\/div>/gi, '');
 
         const { text, entities } = getEntities(innerHTML);
 
@@ -1147,7 +1137,7 @@ class InputBoxControl extends Component {
     };
 
     render() {
-        const { classes, t } = this.props;
+        const { t } = this.props;
         const {
             chatId,
             editMessageId,
@@ -1163,9 +1153,9 @@ class InputBoxControl extends Component {
         const isMediaEditing = editMessageId > 0 && !isTextMessage(chatId, editMessageId);
 
         return (
-            <div className={classes.inputboxBackground}>
-                <div className={classNames(classes.borderColor, 'inputbox')}>
-                    <div className={classNames('inputbox-bubble', classes.inputboxBubble)}>
+            <div className='inputbox-background'>
+                <div className='inputbox'>
+                    <div className='inputbox-bubble'>
                         <InputBoxHeader
                             chatId={chatId}
                             messageId={replyToMessageId}
@@ -1226,16 +1216,15 @@ class InputBoxControl extends Component {
                             </div>
                         </div>
                     </div>
-                    <Button
-                        variant='contained'
-                        disableElevation
-                        color='primary'
-                        className='inputbox-send-button'
-                        aria-label='Send'
-                        size='small'
-                        onClick={this.handleSubmit}>
-                        {editMessageId ? <DoneIcon /> : <SendIcon />}
-                    </Button>
+                    <div className='inputbox-send-button-background'>
+                        <IconButton
+                            className='inputbox-send-button'
+                            aria-label='Send'
+                            size='small'
+                            onClick={this.handleSubmit}>
+                            {editMessageId ? <DoneIcon /> : <SendIcon />}
+                        </IconButton>
+                    </div>
                 </div>
                 {!isPrivateChat(chatId) && <CreatePollDialog onSend={this.handleSendPoll} />}
                 <PasteFilesDialog files={files} onConfirm={this.handlePasteConfirm} onCancel={this.handlePasteCancel} />
@@ -1259,9 +1248,4 @@ class InputBoxControl extends Component {
     }
 }
 
-const enhance = compose(
-    withStyles(styles, { withTheme: true }),
-    withTranslation()
-);
-
-export default enhance(InputBoxControl);
+export default withTranslation()(InputBoxControl);

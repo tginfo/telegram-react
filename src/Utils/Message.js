@@ -28,7 +28,8 @@ import {
     getChatDisableMentionNotifications,
     getChatDisablePinnedMessageNotifications,
     getChatTitle,
-    isChatMuted
+    isChatMuted,
+    isMeChat
 } from './Chat';
 import { openUser } from './../Actions/Client';
 import { getPhotoSize } from './Common';
@@ -45,6 +46,68 @@ import MessageStore from '../Stores/MessageStore';
 import UserStore from '../Stores/UserStore';
 import TdLibController from '../Controllers/TdLibController';
 import Call from '../Components/Message/Media/Call';
+
+export function isMetaBubble(chatId, messageId) {
+    const message = MessageStore.get(chatId, messageId);
+    if (!message) {
+        return false;
+    }
+
+    const { content } = message;
+    if (!content) {
+        return false;
+    }
+
+    const { caption } = content;
+    if (caption && caption.text && caption.text.length > 0) {
+        return false;
+    }
+
+    switch (content['@type']) {
+        case 'messageAnimation': {
+            return true;
+        }
+        case 'messageLocation': {
+            return true;
+        }
+        case 'messagePhoto': {
+            return true;
+        }
+        case 'messageSticker': {
+            return true;
+        }
+        case 'messageVideo': {
+            return true;
+        }
+        case 'messageVideoNote': {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+export function isMessageUnread(chatId, messageId) {
+    const chat = ChatStore.get(chatId);
+    if (!chat) {
+        return false;
+    }
+
+    const { last_read_inbox_message_id, last_read_outbox_message_id } = chat;
+
+    const message = MessageStore.get(chatId, messageId);
+    if (!message) {
+        return false;
+    }
+
+    const { id, is_outgoing } = message;
+    const isMe = isMeChat(chatId);
+    if (is_outgoing && isMe) {
+        return false;
+    }
+
+    return is_outgoing ? id > last_read_outbox_message_id : id > last_read_inbox_message_id;
+}
 
 function getAuthor(message) {
     if (!message) return null;
@@ -132,6 +195,11 @@ function getFormattedText(formattedText) {
     for (let i = 0; i < entities.length; i++) {
         const entity = entities[i];
         const { offset, length, type } = entity;
+
+        // skip nested entities
+        if (index > offset) {
+            continue;
+        }
 
         let textBefore = substring(text, index, offset);
         const textBeforeLength = textBefore.length;
@@ -281,13 +349,13 @@ function getFormattedText(formattedText) {
     return result;
 }
 
-function getText(message) {
+function getText(message, meta) {
     if (!message) return null;
 
     let result = [];
 
     const { content } = message;
-    if (!content) return result;
+    if (!content) return [...result, meta];
 
     const { text, caption } = content;
 
@@ -300,7 +368,7 @@ function getText(message) {
         }
     }
 
-    return result;
+    return result && result.length > 0 ? [...result, meta] : [];
 }
 
 function getWebPage(message) {
@@ -325,7 +393,7 @@ function getDateHint(date) {
     return dateFormat(d, 'H:MM:ss d.mm.yyyy'); //date.toDateString();
 }
 
-function getMedia(message, openMedia, hasTitle = false, hasCaption = false) {
+function getMedia(message, openMedia, hasTitle = false, hasCaption = false, inlineMeta = null) {
     if (!message) return null;
 
     const { chat_id, id, content } = message;
@@ -345,21 +413,50 @@ function getMedia(message, openMedia, hasTitle = false, hasCaption = false) {
                 />
             );
         case 'messageAudio':
-            return <Audio chatId={chat_id} messageId={id} audio={content.audio} openMedia={openMedia} />;
+            return (
+                <Audio
+                    title={hasTitle}
+                    chatId={chat_id}
+                    messageId={id}
+                    audio={content.audio}
+                    openMedia={openMedia}
+                    meta={inlineMeta}
+                />
+            );
         case 'messageCall':
             return (
                 <Call
+                    title={hasTitle}
                     chatId={chat_id}
                     messageId={id}
                     duraton={content.duration}
                     discardReason={content.discard_reason}
                     openMedia={openMedia}
+                    meta={inlineMeta}
                 />
             );
         case 'messageContact':
-            return <Contact chatId={chat_id} messageId={id} contact={content.contact} openMedia={openMedia} />;
+            return (
+                <Contact
+                    title={hasTitle}
+                    chatId={chat_id}
+                    messageId={id}
+                    contact={content.contact}
+                    openMedia={openMedia}
+                    meta={inlineMeta}
+                />
+            );
         case 'messageDocument':
-            return <Document chatId={chat_id} messageId={id} document={content.document} openMedia={openMedia} />;
+            return (
+                <Document
+                    title={hasTitle}
+                    chatId={chat_id}
+                    messageId={id}
+                    document={content.document}
+                    openMedia={openMedia}
+                    meta={inlineMeta}
+                />
+            );
         case 'messageGame':
             return <Game chatId={chat_id} messageId={id} game={content.game} openMedia={openMedia} />;
         case 'messageLocation':
@@ -387,7 +484,7 @@ function getMedia(message, openMedia, hasTitle = false, hasCaption = false) {
                 />
             );
         case 'messagePoll':
-            return <Poll chatId={chat_id} messageId={id} poll={content.poll} openMedia={openMedia} />;
+            return <Poll chatId={chat_id} messageId={id} poll={content.poll} openMedia={openMedia} meta={inlineMeta} />;
         case 'messageSticker':
             return (
                 <Sticker
@@ -410,6 +507,7 @@ function getMedia(message, openMedia, hasTitle = false, hasCaption = false) {
                     messageId={id}
                     venue={content.venue}
                     openMedia={openMedia}
+                    meta={inlineMeta}
                 />
             );
         case 'messageVideo':
@@ -446,10 +544,11 @@ function getMedia(message, openMedia, hasTitle = false, hasCaption = false) {
                     messageId={id}
                     voiceNote={content.voice_note}
                     openMedia={openMedia}
+                    meta={inlineMeta}
                 />
             );
         default:
-            return '[' + content['@type'] + ']';
+            return [`[${content['@type']}]`, inlineMeta];
     }
 }
 
@@ -1088,7 +1187,7 @@ function openContact(contact, message, fileCancel) {
         message_id: id
     });
 
-    openUser(contact.userId);
+    openUser(contact.user_id, true);
 }
 
 function openDocument(document, message, fileCancel) {

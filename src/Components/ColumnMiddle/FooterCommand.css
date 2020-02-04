@@ -6,13 +6,22 @@
  */
 
 .footer-command-wrapper {
+    margin-top: 14px;
     text-align: center;
     height: 65px;
     box-sizing: border-box;
-    border-top-width: 1px;
-    border-top-style: solid;
+    border-top: 1px solid var(--border);
+    background: var(--panel-background);
 }
 
 .footer-command-actions {
-    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.footer-command-button {
+    margin: 14px;
+    min-width: 100px;
 }

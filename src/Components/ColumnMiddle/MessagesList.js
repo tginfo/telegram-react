@@ -8,11 +8,10 @@
 import React from 'react';
 import * as ReactDOM from 'react-dom';
 import classNames from 'classnames';
-import withStyles from '@material-ui/core/styles/withStyles';
+import ActionBar from './ActionBar';
 import DayMeta from '../Message/DayMeta';
 import FilesDropTarget from './FilesDropTarget';
 import Message from '../Message/Message';
-import PinnedMessage from './PinnedMessage';
 import Placeholder from './Placeholder';
 import ScrollDownButton from './ScrollDownButton';
 import ServiceMessage from '../Message/ServiceMessage';
@@ -21,7 +20,7 @@ import { throttle, getPhotoSize, itemsInView, historyEquals } from '../../Utils/
 import { loadChatsContent, loadDraftContent, loadMessageContents } from '../../Utils/File';
 import { canMessageBeEdited, filterDuplicateMessages, filterMessages } from '../../Utils/Message';
 import { isServiceMessage } from '../../Utils/ServiceMessage';
-import { canSendFiles, getChatFullInfo, getSupergroupId, isChannelChat } from '../../Utils/Chat';
+import { canSendMediaMessages, getChatFullInfo, getSupergroupId, isChannelChat } from '../../Utils/Chat';
 import { highlightMessage, openChat } from '../../Actions/Client';
 import { MESSAGE_SLICE_LIMIT, MESSAGE_SPLIT_MAX_TIME_S, SCROLL_PRECISION } from '../../Constants';
 import AppStore from '../../Stores/ApplicationStore';
@@ -40,12 +39,6 @@ const ScrollBehaviorEnum = Object.freeze({
     SCROLL_TO_MESSAGE: 'SCROLL_TO_MESSAGE',
     KEEP_SCROLL_POSITION: 'KEEP_SCROLL_POSITION',
     NONE: 'NONE'
-});
-
-const styles = theme => ({
-    background: {
-        background: theme.palette.type === 'dark' ? theme.palette.grey[900] : '#e6ebee'
-    }
 });
 
 class MessagesList extends React.Component {
@@ -1012,7 +1005,7 @@ class MessagesList extends React.Component {
         const list = this.listRef.current;
 
         const chat = ChatStore.get(chatId);
-        const pinnedMessageMargin = chat && chat.pinned_message_id ? 55 : 0;
+        const pinnedMessageMargin = 0; //chat && chat.pinned_message_id ? 55 : 0;
 
         // console.log(
         //     `MessagesList.scrollToUnread before
@@ -1184,9 +1177,13 @@ class MessagesList extends React.Component {
         event.stopPropagation();
 
         const { chatId } = this.props;
-        if (!canSendFiles(chatId)) return;
+        if (!canSendMediaMessages(chatId)) return;
 
-        AppStore.setDragging(true);
+        TdLibController.clientUpdate({
+            '@type': 'clientUpdateDragging',
+            dragging: true,
+            files: event.dataTransfer.files
+        });
     };
 
     handleScrollDownClick = event => {
@@ -1208,7 +1205,7 @@ class MessagesList extends React.Component {
     showMessageTitle(message, prevMessage, isFirst) {
         if (!message) return false;
 
-        const { chat_id, date, sender_user_id } = message;
+        const { chat_id, date, sender_user_id, content } = message;
 
         if (isFirst) {
             return true;
@@ -1246,7 +1243,7 @@ class MessagesList extends React.Component {
     }
 
     render() {
-        const { classes, chatId } = this.props;
+        const { chatId } = this.props;
         const { history, separatorMessageId, clearHistory, selectionActive, scrollDownVisible } = this.state;
 
         // console.log('[ml] render ', history);
@@ -1303,7 +1300,7 @@ class MessagesList extends React.Component {
 
         return (
             <div
-                className={classNames(classes.background, 'messages-list', {
+                className={classNames('messages-list', {
                     'messages-list-selection-active': selectionActive
                 })}
                 onDragEnter={this.handleListDragEnter}>
@@ -1313,9 +1310,9 @@ class MessagesList extends React.Component {
                         {this.messages}
                     </div>
                 </div>
+                <ActionBar chatId={chatId} />
                 <Placeholder />
                 {scrollDownVisible && <ScrollDownButton onClick={this.handleScrollDownClick} />}
-                <PinnedMessage chatId={chatId} />
                 <FilesDropTarget />
                 <StickersHint />
             </div>
@@ -1323,4 +1320,4 @@ class MessagesList extends React.Component {
     }
 }
 
-export default withStyles(styles, { withTheme: true })(MessagesList);
+export default MessagesList;

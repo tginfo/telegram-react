@@ -11,6 +11,7 @@ import CacheManager from '../Workers/CacheManager';
 import BasicGroupStore from './BasicGroupStore';
 import ChatStore from './ChatStore';
 import FileStore from './FileStore';
+import MessageStore from './MessageStore';
 import OptionStore from './OptionStore';
 import SupergroupStore from './SupergroupStore';
 import UserStore from './UserStore';
@@ -82,7 +83,7 @@ class CacheStore extends EventEmitter {
         TdLibController.off('clientUpdate', this.onClientUpdate);
     };
 
-    async getChats() {
+    async loadCache() {
         // console.log('[cm] getChats start');
         const promises = [];
         promises.push(CacheManager.load('cache').catch(error => null));
@@ -96,9 +97,8 @@ class CacheStore extends EventEmitter {
         if (!this.cache) return null;
 
         this.parseCache(this.cache);
-        const { chats } = this.cache;
 
-        return chats || [];
+        return this.cache;
     }
 
     parseCache(cache) {
@@ -123,6 +123,8 @@ class CacheStore extends EventEmitter {
         });
 
         (chats || []).concat(archiveChats || []).forEach(x => {
+            delete x.OutputTypingManager;
+
             ChatStore.set(x);
             if (x.photo) {
                 if (x.photo.small) FileStore.set(x.photo.small);
@@ -130,6 +132,9 @@ class CacheStore extends EventEmitter {
             }
             if (x.chat_list) {
                 ChatStore.updateChatChatList(x.id, x.chat_list);
+            }
+            if (x.last_message) {
+                MessageStore.set(x.last_message);
             }
         });
 

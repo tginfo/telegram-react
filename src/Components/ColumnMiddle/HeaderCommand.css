@@ -6,7 +6,8 @@
  */
 
 .header-command {
-    min-height: 64px;
+    height: 60px;
+    padding: 0 7px;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -14,6 +15,12 @@
     box-sizing: border-box;
     border-bottom-width: 1px;
     border-bottom-style: solid;
+    background: var(--panel-background);
+    border-color: var(--border);
+}
+
+.header-command-button {
+    margin: 0 7px;
 }
 
 .header-command-space {

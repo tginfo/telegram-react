@@ -14,12 +14,11 @@
 }
 
 .animation-big {
-    border-radius: 10px;
+    /*border-radius: 10px;*/
     margin: -6px -9px;
 }
 
 .animation-title {
-    margin-top: 6px;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
 }

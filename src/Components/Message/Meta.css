@@ -7,14 +7,54 @@
 
 .meta {
     user-select: none;
-    font-size: 0.85em;
+    font-size: 12px;
+    line-height: 14px;
     flex-shrink: 0;
+    color: var(--message-in-meta-color);
+    display: flex;
+    align-items: center;
+}
+
+.meta-text {
+    position: absolute;
+    right: 4px;
+    bottom: 3px;
+}
+
+.meta-bubble {
+    height: 18px;
+    align-items: center;
+    border-radius: 9px;
+    padding: 0 5px 0 0;
+    background: var(--message-service-background);
+}
+
+.message .meta.meta-bubble,
+.message .meta.meta-bubble a {
+    color: var(--message-service-color);
+}
+
+.meta-hidden {
+    display: inline;
+    opacity: 0;
+}
+
+.message .meta a {
+    color: var(--message-in-meta-color);
+}
+
+.message-out .meta {
+    color: var(--message-out-meta-color);
+}
+
+.message-out .meta a {
+    color: var(--message-out-meta-color);
 }
 
 .meta-views {
-    font-weight: 500;
 }
 
 .meta-views-icon {
-    transform: translateY(2px);
+    font-size: 14px;
+    /*transform: translateY(2px);*/
 }

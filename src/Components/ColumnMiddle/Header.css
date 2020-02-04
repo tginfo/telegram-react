@@ -6,20 +6,23 @@
  */
 
 .header-master {
-    min-height: 65px;
+    height: 60px;
     display: flex;
     align-items: center;
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .header-details {
-    min-height: 65px;
+    height: 60px;
     display: flex;
     align-items: center;
     overflow: hidden;
     box-sizing: border-box;
     border-bottom-width: 1px;
     border-bottom-style: solid;
+    background: var(--panel-background);
+    border-color: var(--border);
 }
 
 .header-title {
@@ -27,7 +30,7 @@
 }
 
 .header-status {
-    font: 22px / normal 'Product Sans', 'Roboto', sans-serif;
+    font: 20px / normal 'Product Sans', 'Roboto', sans-serif;
     padding: 0 24px;
     user-select: none;
     background: transparent;
@@ -41,14 +44,21 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
+    color: var(--header-color);
 }
 
 .header-status-title {
     font-size: 14px;
+    line-height: normal;
     word-wrap: break-word;
     white-space: nowrap;
     text-overflow: ellipsis;
     margin-left: 8px;
+    color: var(--header-subtle-color);
+}
+
+.header-status-accent {
+    color: var(--color-accent-dark);
 }
 
 .header-status-tail {

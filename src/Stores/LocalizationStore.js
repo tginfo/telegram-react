@@ -40,6 +40,8 @@ i18n.use(initReactI18next).init({
     resources: {
         en: {
             local: {
+                LeftChannel: 'Left channel',
+                LeftGroup: 'Left group',
                 EnterPassword: 'Enter a Password',
                 YourAccountProtectedWithPassword: 'Your account is protected with an additional password.',
                 DeletedMessage: 'Deleted message',
@@ -59,7 +61,7 @@ i18n.use(initReactI18next).init({
                 ChannelInfo: 'Channel Info',
                 Stickers: 'STICKERS',
                 Emoji: 'EMOJI',
-                SelectChatToStartMessaging: 'Select a chat to start messaging',
+                SelectChatToStartMessaging: 'Please select a chat to start messaging',
                 Text: 'Text',
                 ViewChannelInfo: 'View channel info',
                 ViewGroupInfo: 'View group info',
@@ -98,6 +100,8 @@ i18n.use(initReactI18next).init({
         },
         ru: {
             local: {
+                LeftChannel: 'Канал покинут',
+                LeftGroup: 'Группа покинута',
                 EnterPassword: 'Введите пароль',
                 YourAccountProtectedWithPassword: 'Ваш аккаунт защищен дополнительным паролем.',
                 DeletedMessage: 'Удаленное сообщение',
@@ -117,7 +121,7 @@ i18n.use(initReactI18next).init({
                 ChannelInfo: 'Информация о канале',
                 Stickers: 'СТИКЕРЫ',
                 Emoji: 'ЕМОДЗИ',
-                SelectChatToStartMessaging: 'Выберите, кому хотели бы написать',
+                SelectChatToStartMessaging: 'Пожалуйста, выберите, кому хотели бы написать',
                 Text: 'Текст',
                 ViewChannelInfo: 'Информация о канале',
                 ViewGroupInfo: 'Информация о группе',

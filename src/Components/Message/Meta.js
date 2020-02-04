@@ -8,35 +8,31 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import { compose } from 'recompose';
-import withStyles from '@material-ui/core/styles/withStyles';
-import VisibilityIcon from '@material-ui/icons/Visibility';
 import { withTranslation } from 'react-i18next';
+import VisibilityIcon from '@material-ui/icons/Visibility';
+import Status from './Status';
 import { getDate, getDateHint } from '../../Utils/Message';
+import MessageStore from '../../Stores/MessageStore';
 import './Meta.css';
-
-const styles = theme => ({
-    meta: {
-        color: theme.palette.text.secondary,
-        '& a': {
-            color: theme.palette.text.secondary
-        }
-    }
-});
 
 class Meta extends React.Component {
     render() {
-        const { classes, date, editDate, onDateClick, t, views } = this.props;
+        const { className, chatId, messageId, date, editDate, onDateClick, t, views, style } = this.props;
+
+        const message = MessageStore.get(chatId, messageId);
+        if (!message) return null;
+
+        const { is_outgoing } = message;
 
         const dateStr = getDate(date);
         const dateHintStr = getDateHint(date);
 
         return (
-            <div className={classNames('meta', classes.meta)}>
+            <div className={classNames('meta', className)} style={style}>
                 <span>&ensp;</span>
                 {views > 0 && (
                     <>
-                        <VisibilityIcon fontSize='inherit' className='meta-views-icon' />
+                        <VisibilityIcon className='meta-views-icon' />
                         <span className='meta-views'>
                             &nbsp;
                             {views}
@@ -48,21 +44,19 @@ class Meta extends React.Component {
                 <a onClick={onDateClick}>
                     <span title={dateHintStr}>{dateStr}</span>
                 </a>
+                {is_outgoing && <Status chatId={chatId} messageId={messageId} />}
             </div>
         );
     }
 }
 
 Meta.propTypes = {
+    chatId: PropTypes.number.isRequired,
+    messageId: PropTypes.number.isRequired,
     views: PropTypes.number,
     date: PropTypes.number.isRequired,
     editDate: PropTypes.number,
     onDateClick: PropTypes.func
 };
 
-const enhance = compose(
-    withStyles(styles, { withTheme: true }),
-    withTranslation()
-);
-
-export default enhance(Meta);
+export default withTranslation()(Meta);

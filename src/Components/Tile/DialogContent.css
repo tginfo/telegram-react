@@ -6,16 +6,16 @@
  */
 
 .dialog-content {
-    font-size: 14px;
     word-wrap: break-word;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     flex-grow: 1;
+    color: var(--dialog-subtle-color);
 }
 
 .dialog-content-accent {
-    /*color: #000;*/
+    color: var(--dialog-color);
 }
 
 .dialog-active .dialog-content,

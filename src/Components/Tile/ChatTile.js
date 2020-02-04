@@ -8,7 +8,6 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import withStyles from '@material-ui/core/styles/withStyles';
 import BookmarkBorderIcon from '@material-ui/icons/BookmarkBorder';
 import ChatStatus from './ChatStatus';
 import { getChatLetters, isMeChat, isPrivateChat } from '../../Utils/Chat';
@@ -16,17 +15,6 @@ import { getSrc, loadChatContent } from '../../Utils/File';
 import ChatStore from '../../Stores/ChatStore';
 import FileStore from '../../Stores/FileStore';
 import './ChatTile.css';
-
-const styles = {
-    statusRoot: {
-        position: 'absolute',
-        right: 1,
-        bottom: 1,
-        zIndex: 1
-    },
-    statusIcon: {},
-    iconIndicator: {}
-};
 
 class ChatTile extends Component {
     constructor(props) {
@@ -38,15 +26,14 @@ class ChatTile extends Component {
     }
 
     shouldComponentUpdate(nextProps, nextState) {
-        if (nextProps.chatId !== this.props.chatId) {
+        const { chatId } = this.props;
+        const { loaded } = this.state;
+
+        if (nextProps.chatId !== chatId) {
             return true;
         }
 
-        if (nextProps.theme !== this.props.theme) {
-            return true;
-        }
-
-        if (nextState.loaded !== this.state.loaded) {
+        if (nextState.loaded !== loaded) {
             return true;
         }
 
@@ -55,16 +42,16 @@ class ChatTile extends Component {
 
     componentDidMount() {
         ChatStore.on('clientUpdateFastUpdatingComplete', this.onFastUpdatingComplete);
-        FileStore.on('clientUpdateChatBlob', this.onClientUpdateChatBlob);
         ChatStore.on('updateChatPhoto', this.onUpdateChatPhoto);
         ChatStore.on('updateChatTitle', this.onUpdateChatTitle);
+        FileStore.on('clientUpdateChatBlob', this.onClientUpdateChatBlob);
     }
 
     componentWillUnmount() {
         ChatStore.off('clientUpdateFastUpdatingComplete', this.onFastUpdatingComplete);
-        FileStore.off('clientUpdateChatBlob', this.onClientUpdateChatBlob);
         ChatStore.off('updateChatPhoto', this.onUpdateChatPhoto);
         ChatStore.off('updateChatTitle', this.onUpdateChatTitle);
+        FileStore.off('clientUpdateChatBlob', this.onClientUpdateChatBlob);
     }
 
     onFastUpdatingComplete = update => {
@@ -123,13 +110,22 @@ class ChatTile extends Component {
     };
 
     render() {
-        const { classes, chatId, showOnline, showSavedMessages, onSelect, small, big } = this.props;
+        const { chatId, showOnline, showSavedMessages, onSelect, small, big, size } = this.props;
         const { loaded } = this.state;
+
+        let style = null;
+        if (size) {
+            style = {
+                width: size,
+                height: size
+            };
+        }
 
         if (isMeChat(chatId) && showSavedMessages) {
             return (
                 <div
                     className={classNames('chat-tile', { 'tile-small': small }, { 'tile-big': big })}
+                    style={style}
                     onClick={this.handleSelect}>
                     <div className={classNames('tile-photo', 'tile_color_4', { pointer: onSelect })}>
                         <div className='tile-saved-messages'>
@@ -160,6 +156,7 @@ class ChatTile extends Component {
                     { 'tile-small': small },
                     { 'tile-big': big }
                 )}
+                style={style}
                 onClick={this.handleSelect}>
                 {!tileLoaded && (
                     <div className='tile-photo'>
@@ -167,28 +164,18 @@ class ChatTile extends Component {
                     </div>
                 )}
                 {src && <img className='tile-photo' src={src} onLoad={this.handleLoad} draggable={false} alt='' />}
-
-                {showOnline && isPrivateChat(chatId) && (
-                    <ChatStatus
-                        chatId={chatId}
-                        classes={{
-                            root: classes.statusRoot,
-                            icon: classes.statusIcon,
-                            iconIndicator: classes.iconIndicator
-                        }}
-                    />
-                )}
+                {showOnline && isPrivateChat(chatId) && <ChatStatus chatId={chatId} />}
             </div>
         );
     }
 }
 
 ChatTile.propTypes = {
-    classes: PropTypes.object,
     chatId: PropTypes.number.isRequired,
     onSelect: PropTypes.func,
     showSavedMessages: PropTypes.bool,
-    showOnline: PropTypes.bool
+    showOnline: PropTypes.bool,
+    size: PropTypes.number
 };
 
 ChatTile.defaultProps = {
@@ -196,4 +183,4 @@ ChatTile.defaultProps = {
     showOnline: false
 };
 
-export default withStyles(styles, { withTheme: true })(ChatTile);
+export default ChatTile;

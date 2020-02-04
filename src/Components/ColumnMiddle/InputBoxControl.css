@@ -6,7 +6,6 @@
  */
 
 .inputbox-background {
-    /*background: #e6ebee;*/
 }
 
 .inputbox {
@@ -17,9 +16,9 @@
     flex-direction: row;
     align-items: flex-end;
     box-sizing: border-box;
-    border-top-width: 1px;
-    border-top-style: solid;
-
+    /*border-top-width: 1px;*/
+    /*border-top-style: solid;*/
+    /*border-color: var(--border);*/
     padding: 10px 0 25px;
     width: calc(100% - 22px);
     max-width: 695px;
@@ -41,7 +40,7 @@
     border-radius: 12px 12px 0 12px;
     box-shadow: 0 1px 2px 0 rgba(16, 35, 47, 0.15);
     margin-right: 9px;
-    /*background: white;*/
+    background: var(--message-in-background);
 }
 
 .inputbox-bubble::after {
@@ -54,7 +53,7 @@
     mask: url(../../Assets/bubble-tail-right.svg);
     transform: translate(-2px, -2px);
     box-sizing: border-box;
-    /*background: red;*/
+    background: var(--message-in-background);
 }
 
 .inputbox-wrapper {
@@ -125,10 +124,16 @@
 }
 
 .inputbox-send-button {
+    width: 100%;
+    height: 100%;
+    color: var(--color-accent-main);
+}
+
+.inputbox-send-button-background {
     margin: 0;
     min-width: 54px;
     height: 54px;
     border-radius: 50%;
     box-shadow: 0 1px 2px 0 rgba(16, 35, 47, 0.15);
-    color: #fff;
+    background: var(--panel-background);
 }
