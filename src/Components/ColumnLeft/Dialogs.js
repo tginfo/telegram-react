@@ -10,6 +10,9 @@ import classNames from 'classnames';
 import Search from './Search/Search';
 import DialogsHeader from './DialogsHeader';
 import DialogsList from './DialogsList';
+import EditProfile from './Settings/EditProfile';
+import Notifications from './Settings/Notifications';
+import Settings from './Settings/Settings';
 import UpdatePanel from './UpdatePanel';
 import { openChat } from '../../Actions/Client';
 import { getArchiveTitle } from '../../Utils/Archive';
@@ -59,6 +62,9 @@ class Dialogs extends Component {
             archiveItems,
             isChatDetailsVisible,
             openSearch,
+            openSettings,
+            openEditProfile,
+            openNotifications,
             openArchive,
             searchChatId,
             searchText
@@ -88,7 +94,19 @@ class Dialogs extends Component {
             return true;
         }
 
+        if (nextState.openEditProfile !== openEditProfile) {
+            return true;
+        }
+
+        if (nextState.openNotifications !== openNotifications) {
+            return true;
+        }
+
         if (nextState.openSearch !== openSearch) {
+            return true;
+        }
+
+        if (nextState.openSettings !== openSettings) {
             return true;
         }
 
@@ -122,8 +140,14 @@ class Dialogs extends Component {
         ChatStore.on('updateChatLastMessage', this.onUpdateChatOrder);
         ChatStore.on('updateChatOrder', this.onUpdateChatOrder);
 
+        ChatStore.on('clientUpdateOpenSettings', this.onClientUpdateOpenSettings);
+        ChatStore.on('clientUpdateCloseSettings', this.onClientUpdateCloseSettings);
         ChatStore.on('clientUpdateOpenArchive', this.onClientUpdateOpenArchive);
         ChatStore.on('clientUpdateCloseArchive', this.onClientUpdateCloseArchive);
+        ChatStore.on('clientUpdateOpenEditProfile', this.onClientUpdateOpenEditProfile);
+        ChatStore.on('clientUpdateCloseEditProfile', this.onClientUpdateCloseEditProfile);
+        ChatStore.on('clientUpdateOpenNotifications', this.onClientUpdateOpenNotifications);
+        ChatStore.on('clientUpdateCloseNotifications', this.onClientUpdateCloseNotifications);
     }
 
     componentWillUnmount() {
@@ -139,8 +163,14 @@ class Dialogs extends Component {
         ChatStore.off('updateChatLastMessage', this.onUpdateChatOrder);
         ChatStore.off('updateChatOrder', this.onUpdateChatOrder);
 
+        ChatStore.off('clientUpdateOpenSettings', this.onClientUpdateOpenSettings);
+        ChatStore.off('clientUpdateCloseSettings', this.onClientUpdateCloseSettings);
         ChatStore.off('clientUpdateOpenArchive', this.onClientUpdateOpenArchive);
         ChatStore.off('clientUpdateCloseArchive', this.onClientUpdateCloseArchive);
+        ChatStore.off('clientUpdateOpenEditProfile', this.onClientUpdateOpenEditProfile);
+        ChatStore.off('clientUpdateCloseEditProfile', this.onClientUpdateCloseEditProfile);
+        ChatStore.off('clientUpdateOpenNotifications', this.onClientUpdateOpenNotifications);
+        ChatStore.off('clientUpdateCloseNotifications', this.onClientUpdateCloseNotifications);
     }
 
     async loadCache() {
@@ -225,6 +255,30 @@ class Dialogs extends Component {
                 '@type': 'clientUpdateCloseArchive'
             });
         }
+    };
+
+    onClientUpdateOpenEditProfile = update => {
+        this.setState({ openEditProfile: true });
+    };
+
+    onClientUpdateCloseEditProfile = update => {
+        this.setState({ openEditProfile: false });
+    };
+
+    onClientUpdateOpenNotifications = update => {
+        this.setState({ openNotifications: true });
+    };
+
+    onClientUpdateCloseNotifications = update => {
+        this.setState({ openNotifications: false });
+    };
+
+    onClientUpdateOpenSettings = update => {
+        this.setState({ openSettings: true, meChatId: update.chatId });
+    };
+
+    onClientUpdateCloseSettings = update => {
+        this.setState({ openSettings: false });
     };
 
     onClientUpdateOpenArchive = update => {
@@ -332,6 +386,10 @@ class Dialogs extends Component {
             mainItems,
             archiveItems,
             isChatDetailsVisible,
+            openSettings,
+            openEditProfile,
+            openNotifications,
+            meChatId,
             openArchive,
             openSearch,
             searchChatId,
@@ -348,8 +406,11 @@ class Dialogs extends Component {
                 })}>
                 <DialogsHeader
                     ref={this.dialogsHeaderRef}
+                    openSettings={openSettings}
                     openArchive={openArchive}
                     openSearch={openSearch}
+                    openEditProfile={openEditProfile}
+                    openNotifications={openNotifications}
                     onClick={this.handleHeaderClick}
                     onSearch={this.handleSearch}
                     onSearchTextChange={this.handleSearchTextChange}
@@ -381,6 +442,9 @@ class Dialogs extends Component {
                             onClose={this.handleClose}
                         />
                     )}
+                    {openSettings && <Settings chatId={meChatId} />}
+                    {openEditProfile && <EditProfile chatId={meChatId} />}
+                    {openNotifications && <Notifications chatId={meChatId} />}
                 </div>
                 <UpdatePanel />
             </div>

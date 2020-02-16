@@ -288,7 +288,7 @@ class Dialog extends Component {
                             horizontal: 'left'
                         }}
                         onMouseDown={e => e.stopPropagation()}>
-                        <MenuList classes={{ root: 'menu-list' }} onClick={e => e.stopPropagation()}>
+                        <MenuList onClick={e => e.stopPropagation()}>
                             {canToggleArchive && (
                                 <MenuItem onClick={this.handleArchive}>
                                     {isArchived ? t('Unarchive') : t('Archive')}
@@ -300,7 +300,7 @@ class Dialog extends Component {
                                 </MenuItem>
                             )}
                             <MenuItem onClick={this.handleViewInfo}>{this.getViewInfoTitle()}</MenuItem>
-                            <MenuItem onClick={this.handleMute}>{isMuted ? t('Unmute') : t('Mute')}</MenuItem>
+                            <MenuItem onClick={this.handleMute}>{isMuted ? t('ChatsUnmute') : t('ChatsMute')}</MenuItem>
                             <MenuItem onClick={this.handleRead}>
                                 {isUnread ? t('MarkAsRead') : t('MarkAsUnread')}
                             </MenuItem>

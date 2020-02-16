@@ -8,9 +8,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import copy from 'copy-to-clipboard';
-import classNames from 'classnames';
 import { compose } from 'recompose';
-import withStyles from '@material-ui/core/styles/withStyles';
 import { withTranslation } from 'react-i18next';
 import { withSnackbar } from 'notistack';
 import Button from '@material-ui/core/Button';
@@ -18,11 +16,12 @@ import IconButton from '@material-ui/core/IconButton';
 import Dialog from '@material-ui/core/Dialog';
 import DialogActions from '@material-ui/core/DialogActions';
 import DialogTitle from '@material-ui/core/DialogTitle';
-import CloseIcon from '@material-ui/icons/Close';
+import CloseIcon from '../../Assets/Icons/Close';
 import ForwardTargetChat from '../Tile/ForwardTargetChat';
 import { canSendMessages, getChatTitle, getChatUsername, isSupergroup } from '../../Utils/Chat';
 import { loadChatsContent } from '../../Utils/File';
 import { getCyrillicInput, getLatinInput } from '../../Utils/Language';
+import { clearSelection } from '../../Actions/Client';
 import { NOTIFICATION_AUTO_HIDE_DURATION_MS } from '../../Constants';
 import ApplicationStore from '../../Stores/ApplicationStore';
 import FileStore from '../../Stores/FileStore';
@@ -30,21 +29,6 @@ import MessageStore from '../../Stores/MessageStore';
 import UserStore from '../../Stores/UserStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './ForwardDialog.css';
-import { clearSelection } from '../../Actions/Client';
-
-const styles = theme => ({
-    dialog: {
-        color: theme.palette.text.primary
-    },
-    dialogContent: {
-        padding: 0,
-        display: 'flex',
-        position: 'relative'
-    },
-    searchList: {
-        background: theme.palette.background.paper
-    }
-});
 
 class ForwardDialog extends React.Component {
     constructor(props) {
@@ -442,7 +426,7 @@ class ForwardDialog extends React.Component {
     };
 
     render() {
-        const { classes, t } = this.props;
+        const { t } = this.props;
         const {
             chatIds,
             searchText,
@@ -487,7 +471,7 @@ class ForwardDialog extends React.Component {
                 onClose={this.handleClose}
                 aria-labelledby='forward-dialog-title'
                 aria-describedby='forward-dialog-description'
-                className={classes.dialog}>
+                className='forward-dialog'>
                 <DialogTitle id='forward-dialog-title'>{t('ShareSendTo')}</DialogTitle>
                 <div
                     ref={this.searchRef}
@@ -501,9 +485,7 @@ class ForwardDialog extends React.Component {
                 />
                 <div className='forward-dialog-content'>
                     <div className='forward-dialog-list'>{chats}</div>
-                    {searchText && (
-                        <div className={classNames(classes.searchList, 'forward-dialog-search-list')}>{foundChats}</div>
-                    )}
+                    {searchText && <div className='forward-dialog-search-list'>{foundChats}</div>}
                 </div>
                 {this.targetChats.size > 0 && (
                     <div
@@ -543,7 +525,6 @@ ForwardDialog.propTypes = {
 };
 
 const enhance = compose(
-    withStyles(styles, { withTheme: true }),
     withTranslation(),
     withSnackbar
 );

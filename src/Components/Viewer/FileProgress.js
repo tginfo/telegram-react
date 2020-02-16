@@ -7,13 +7,12 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 import CircularProgress from '@material-ui/core/CircularProgress';
-import CloseIcon from '@material-ui/icons/Close';
+import CloseIcon from '../../Assets/Icons/Close';
 import { ANIMATION_DURATION_300MS } from '../../Constants';
 import FileStore from '../../Stores/FileStore';
 import './FileProgress.css';
-
-const circleStyle = { circle: 'file-progress-circle' };
 
 class FileProgress extends React.Component {
     constructor(props) {
@@ -256,8 +255,8 @@ class FileProgress extends React.Component {
             // console.log('FileProgress.render completeIcon');
             if (completeIcon) {
                 return (
-                    <div className='file-progress' style={style}>
-                        <div className='file-progress-icon'>{completeIcon}</div>
+                    <div className={classNames('file-progress', 'file-progress-complete')} style={style}>
+                        {completeIcon}
                     </div>
                 );
             }
@@ -269,20 +268,15 @@ class FileProgress extends React.Component {
             // console.log('FileProgress.render inProgressIcon');
             return (
                 <div className='file-progress' style={style}>
-                    <div className='file-progress-indicator'>
-                        <CircularProgress
-                            classes={circleStyle}
-                            variant='static'
-                            value={progress}
-                            size={42}
-                            thickness={2}
-                        />
-                    </div>
-                    {cancelButton && (
-                        <div className='file-progress-icon'>
-                            <CloseIcon />
-                        </div>
-                    )}
+                    <CircularProgress
+                        className='file-progress-indicator'
+                        classes={{ circle: 'file-progress-circle' }}
+                        variant='static'
+                        value={progress}
+                        size={48}
+                        thickness={2}
+                    />
+                    {cancelButton && <CloseIcon />}
                 </div>
             );
         }
@@ -291,7 +285,7 @@ class FileProgress extends React.Component {
             // console.log('FileProgress.render icon');
             return (
                 <div className='file-progress' style={style}>
-                    <div className='file-progress-icon'>{icon}</div>
+                    {icon}
                 </div>
             );
         }

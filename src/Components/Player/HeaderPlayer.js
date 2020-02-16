@@ -6,15 +6,12 @@
  */
 
 import React from 'react';
-import classNames from 'classnames';
-import { compose } from 'recompose';
 import { withTranslation } from 'react-i18next';
-import withStyles from '@material-ui/core/styles/withStyles';
-import PlayArrowIcon from '@material-ui/icons/PlayArrow';
-import PauseIcon from '@material-ui/icons/Pause';
+import PlayArrowIcon from '../../Assets/Icons/PlayArrow';
+import PauseIcon from '../../Assets/Icons/Pause';
 import SkipNextIcon from '@material-ui/icons/SkipNext';
 import SkipPreviousIcon from '@material-ui/icons/SkipPrevious';
-import CloseIcon from '@material-ui/icons/Close';
+import CloseIcon from '../../Assets/Icons/Close';
 import IconButton from '@material-ui/core/IconButton';
 import VolumeButton from '../Player/VolumeButton';
 import RepeatButton from '../Player/RepeatButton';
@@ -29,15 +26,9 @@ import { getDate, getDateHint, getMediaTitle, hasAudio } from '../../Utils/Messa
 import { PLAYER_PLAYBACKRATE_FAST, PLAYER_PLAYBACKRATE_NORMAL, PLAYER_STARTTIME } from '../../Constants';
 import PlayerStore from '../../Stores/PlayerStore';
 import FileStore from '../../Stores/FileStore';
-import ApplicationStore from '../../Stores/ApplicationStore';
+import AppStore from '../../Stores/ApplicationStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './HeaderPlayer.css';
-
-const styles = theme => ({
-    iconButton: {
-        padding: 4
-    }
-});
 
 class HeaderPlayer extends React.Component {
     constructor(props) {
@@ -99,7 +90,7 @@ class HeaderPlayer extends React.Component {
         PlayerStore.on('clientUpdateMediaVolume', this.onClientUpdateMediaVolume);
         PlayerStore.on('clientUpdateMediaPlaybackRate', this.onClientUpdateMediaPlaybackRate);
 
-        ApplicationStore.on('clientUpdateMediaViewerContent', this.onClientUpdateMediaViewerContent);
+        AppStore.on('clientUpdateMediaViewerContent', this.onClientUpdateMediaViewerContent);
     }
 
     componentWillUnmount() {
@@ -115,7 +106,7 @@ class HeaderPlayer extends React.Component {
         PlayerStore.off('clientUpdateMediaVolume', this.onClientUpdateMediaVolume);
         PlayerStore.off('clientUpdateMediaPlaybackRate', this.onClientUpdateMediaPlaybackRate);
 
-        ApplicationStore.off('clientUpdateMediaViewerContent', this.onClientUpdateMediaViewerContent);
+        AppStore.off('clientUpdateMediaViewerContent', this.onClientUpdateMediaViewerContent);
     }
 
     onClientUpdateMediaPlaybackRate = update => {
@@ -137,7 +128,7 @@ class HeaderPlayer extends React.Component {
     };
 
     onClientUpdateMediaViewerContent = update => {
-        this.playingMediaViewer = Boolean(ApplicationStore.mediaViewerContent);
+        this.playingMediaViewer = Boolean(AppStore.mediaViewerContent);
     };
 
     onClientUpdateMediaViewerEnded = update => {
@@ -608,7 +599,7 @@ class HeaderPlayer extends React.Component {
     };
 
     render() {
-        const { classes } = this.props;
+        const { t } = this.props;
         const { playing, message, playlist, src } = this.state;
 
         let audio = false;
@@ -619,7 +610,7 @@ class HeaderPlayer extends React.Component {
 
         const date = message ? message.date : null;
 
-        const title = getMediaTitle(message);
+        const title = getMediaTitle(message, t);
         const dateHintStr = getDateHint(date);
         const dateStr = getDate(date);
         const showDate = !audio;
@@ -649,13 +640,13 @@ class HeaderPlayer extends React.Component {
                     <div className='header-player'>
                         <IconButton
                             disabled={!hasPrev}
-                            className={classes.iconButton}
+                            className='header-player-button'
                             color='primary'
                             onClick={this.handlePrev}>
                             <SkipPreviousIcon fontSize='small' />
                         </IconButton>
                         <IconButton
-                            className={classes.iconButton}
+                            className='header-player-button'
                             color='primary'
                             disabled={!src}
                             onClick={this.handlePlay}>
@@ -663,7 +654,7 @@ class HeaderPlayer extends React.Component {
                         </IconButton>
                         <IconButton
                             disabled={!hasNext}
-                            className={classes.iconButton}
+                            className='header-player-button'
                             color='primary'
                             onClick={this.handleNext}>
                             <SkipNextIcon fontSize='small' />
@@ -690,7 +681,7 @@ class HeaderPlayer extends React.Component {
                         {showPlaybackRate && <PlaybackRateButton />}
                         {showRepeat && <RepeatButton />}
                         {showShuffle && <ShuffleButton />}
-                        <IconButton className={classes.iconButton} onClick={this.handleClose}>
+                        <IconButton className='header-player-button' onClick={this.handleClose}>
                             <CloseIcon fontSize='small' />
                         </IconButton>
                     </div>
@@ -700,9 +691,4 @@ class HeaderPlayer extends React.Component {
     }
 }
 
-const enhance = compose(
-    withTranslation(),
-    withStyles(styles, { withTheme: true })
-);
-
-export default enhance(HeaderPlayer);
+export default withTranslation()(HeaderPlayer);

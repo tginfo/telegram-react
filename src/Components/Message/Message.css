@@ -116,7 +116,7 @@ pre code {
 }
 
 .message-tile-padding {
-    min-width: 33px;
+    min-width: var(--tile-size-small);
 }
 
 .message-wrapper {
@@ -127,6 +127,39 @@ pre code {
     flex-direction: row;
     flex-grow: 1;
     flex-shrink: 1;
+}
+
+.message:not(.message-out) .message-wrapper {
+    transform-origin: 25% 50%;
+}
+
+.message.message-out .message-wrapper {
+    transform-origin: 75% 50%;
+}
+
+.message-wrapper-shook {
+    animation: shake-animation 500ms;
+}
+
+@keyframes shake-animation {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+    20% {
+        transform: rotate(3deg) scale(0.98);
+    }
+    40% {
+        transform: rotate(-3deg) scale(0.96);
+    }
+    60% {
+        transform: rotate(3deg) scale(0.96);
+    }
+    80% {
+        transform: rotate(-3deg) scale(0.98);
+    }
+    100% {
+        transform: rotate(0deg) scale(1);
+    }
 }
 
 .message-out .message-wrapper {
@@ -153,7 +186,7 @@ pre code {
     /*flex-shrink: 1;*/
     /*overflow: hidden;*/
     max-width: 560px;
-    min-height: 33px;
+    min-height: var(--tile-size-small);
     box-sizing: border-box;
 }
 
@@ -217,7 +250,7 @@ pre code {
     transform: translate(7px, -2px);
 }
 
-.message.message-out:not(.message-bubble-hidden) .user-tile::before,
+.message.message-out:not(.message-bubble-hidden) .user-tile:not(.tile-poll)::before,
 .message.message-out:not(.message-bubble-hidden) .chat-tile::before {
     background: var(--message-out-background);
     position: absolute;
@@ -299,6 +332,34 @@ pre code {
     pointer-events: none;
 }
 
-.menu-list {
-    min-width: 150px;
+.touch-ripple-current-color {
+    color: currentColor;
+}
+
+.message-control {
+    color: var(--message-in-control);
+    border-color: var(--message-in-control-border);
+}
+
+.message-control:hover {
+    background-color: var(--message-in-control-hover);
+    border-color: var(--message-in-control-border-hover);
+}
+
+.message-control-disabled {
+    color: var(--text-disabled);
+}
+
+.message-out .message-control {
+    color: var(--message-out-control);
+    border-color: var(--message-out-control-border);
+}
+
+.message-out .message-control:hover {
+    background-color: var(--message-out-control-hover);
+    border-color: var(--message-out-control-border-hover);
+}
+
+.message-out .message-control-disabled {
+    color: var(--text-disabled);
 }

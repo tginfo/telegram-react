@@ -36,10 +36,17 @@ i18n.use(initReactI18next).init({
     //detection: detection,
     ns: [defaultNamespace, 'local'],
     defaultNS: defaultNamespace,
-    fallbackNS: ['local', 'emoji'],
+    fallbackNS: ['local', 'emoji', 'settings', 'translation'],
     resources: {
         en: {
+            settings: {
+                Archived: 'Archived',
+                Saved: 'Saved',
+                EditProfile: 'Edit Profile',
+                GeneralSettings: 'General Settings'
+            },
             local: {
+                PollQuizOneRightAnswer: 'Quiz has only one right answer.',
                 LeftChannel: 'Left channel',
                 LeftGroup: 'Left group',
                 EnterPassword: 'Enter a Password',
@@ -99,7 +106,14 @@ i18n.use(initReactI18next).init({
             }
         },
         ru: {
+            settings: {
+                Archived: 'Архив',
+                Saved: 'Избранное',
+                EditProfile: 'Редактровать профиль',
+                GeneralSettings: 'Основные настройки'
+            },
             local: {
+                PollQuizOneRightAnswer: 'Quiz has only one right answer.',
                 LeftChannel: 'Канал покинут',
                 LeftGroup: 'Группа покинута',
                 EnterPassword: 'Введите пароль',

@@ -8,30 +8,16 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import withStyles from '@material-ui/core/styles/withStyles';
+import { withTranslation } from 'react-i18next';
 import ChatTile from './ChatTile';
 import { getChatShortTitle } from '../../Utils/Chat';
 import './ForwardTargetChat.css';
 
-const styles = theme => ({
-    border: {
-        borderColor: theme.palette.primary.main
-    },
-    markSelected: {
-        boxShadow: 'inset 0 0 0 10px ' + theme.palette.primary.main,
-        border: '2px solid ' + theme.palette.background.paper
-    },
-    markUnselected: {
-        boxShadow: 'inset 0 0 0 0 ' + theme.palette.primary.main,
-        border: '2px solid transparent'
-    }
-});
-
 class ForwardTargetChat extends React.Component {
     render() {
-        const { classes, chatId, selected, onSelect } = this.props;
+        const { chatId, selected, onSelect, t } = this.props;
 
-        const shortTitle = getChatShortTitle(chatId, true);
+        const shortTitle = getChatShortTitle(chatId, true, t);
 
         return (
             <div
@@ -41,11 +27,11 @@ class ForwardTargetChat extends React.Component {
                     <div className='forward-target-chat-tile-wrapper'>
                         <ChatTile chatId={chatId} />
                     </div>
-                    {selected && <div className={classNames('forward-target-chat-selection', classes.border)} />}
+                    {selected && <div className='forward-target-chat-selection' />}
                     <div
                         className={classNames(
                             'forward-target-chat-mark',
-                            selected ? classes.markSelected : classes.markUnselected
+                            selected ? 'forward-target-chat-mark-selected' : 'forward-target-chat-mark-unselected'
                         )}
                     />
                     <div className='forward-target-chat-mark-icon' />
@@ -62,4 +48,4 @@ ForwardTargetChat.propTypes = {
     onSelect: PropTypes.func.isRequired
 };
 
-export default withStyles(styles, { withTheme: true })(ForwardTargetChat);
+export default withTranslation()(ForwardTargetChat);

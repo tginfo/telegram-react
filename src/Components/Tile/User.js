@@ -7,13 +7,13 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
+import { withTranslation } from 'react-i18next';
 import UserTile from './UserTile';
-import UserStatusControl from './UserStatusControl';
+import UserStatus from './UserStatus';
 import { getUserFullName } from '../../Utils/User';
-import UserStore from '../../Stores/UserStore';
-import './UserControl.css';
+import './User.css';
 
-class UserControl extends React.Component {
+class User extends React.Component {
     shouldComponentUpdate(nextProps, nextState) {
         return nextProps.userId !== this.props.userId;
     }
@@ -26,10 +26,9 @@ class UserControl extends React.Component {
     };
 
     render() {
-        const { userId } = this.props;
-        const user = UserStore.get(userId);
+        const { userId, t } = this.props;
 
-        const fullName = getUserFullName(user);
+        const fullName = getUserFullName(userId, null, t);
 
         return (
             <div className='user' onClick={this.handleClick}>
@@ -40,7 +39,7 @@ class UserControl extends React.Component {
                             <div className='dialog-title'>{fullName}</div>
                         </div>
                         <div className='tile-second-row'>
-                            <UserStatusControl userId={userId} />
+                            <UserStatus userId={userId} />
                         </div>
                     </div>
                 </div>
@@ -49,9 +48,9 @@ class UserControl extends React.Component {
     }
 }
 
-UserControl.propTypes = {
+User.propTypes = {
     userId: PropTypes.number.isRequired,
     onSelect: PropTypes.func
 };
 
-export default UserControl;
+export default withTranslation()(User);

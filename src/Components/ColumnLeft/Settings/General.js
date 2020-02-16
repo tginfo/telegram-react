@@ -5,3 +5,13 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import React from 'react';
+import PropTypes from 'prop-types';
+
+class General extends React.Component {
+    render() {}
+}
+
+General.propTypes = {};
+
+export default General;

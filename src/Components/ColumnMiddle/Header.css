@@ -74,6 +74,10 @@
     margin: 8px 12px 8px 0;
 }
 
+.header-right-second-button {
+    margin: 8px 0 8px 12px;
+}
+
 .cursor-pointer {
     cursor: pointer;
 }

@@ -6,5 +6,12 @@
  */
 
 .document-action {
+    margin-top: 2px;
     font-size: 14px;
+    line-height: normal;
+    color: var(--message-in-subtle-color);
+}
+
+.message-out .document-action {
+    color: var(--message-out-subtle-color);
 }

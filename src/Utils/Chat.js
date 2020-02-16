@@ -20,7 +20,7 @@ import NotificationStore from '../Stores/NotificationStore';
 import SupergroupStore from '../Stores/SupergroupStore';
 import UserStore from '../Stores/UserStore';
 import TdLibController from '../Controllers/TdLibController';
-import InputBoxControl from '../Components/ColumnMiddle/InputBoxControl';
+import InputBox from '../Components/ColumnMiddle/InputBox';
 import FooterCommand from '../Components/ColumnMiddle/FooterCommand';
 
 export function canUnpinMessage(chatId) {
@@ -254,18 +254,15 @@ function getChatTypingString(chatId) {
     return null;
 }
 
-function getMessageSenderFullName(message) {
+function getMessageSenderFullName(message, t = k => k) {
     if (!message) return null;
     if (isServiceMessage(message)) return null;
     if (!message.sender_user_id) return null;
 
-    const user = UserStore.get(message.sender_user_id);
-    if (!user) return null;
-
-    return getUserFullName(user);
+    return getUserFullName(message.sender_user_id, null, t);
 }
 
-function getMessageSenderName(message) {
+function getMessageSenderName(message, t = k => k) {
     if (!message) return null;
     if (isServiceMessage(message)) return null;
 
@@ -274,13 +271,13 @@ function getMessageSenderName(message) {
         return null;
     }
 
-    return getUserShortName(message.sender_user_id);
+    return getUserShortName(message.sender_user_id, t);
 }
 
-function getLastMessageSenderName(chat) {
+function getLastMessageSenderName(chat, t = k => k) {
     if (!chat) return null;
 
-    return getMessageSenderName(chat.last_message);
+    return getMessageSenderName(chat.last_message, t);
 }
 
 function getLastMessageContent(chat, t = key => key) {
@@ -500,10 +497,10 @@ function getChatSubtitle(chatId, showSavedMessages = false) {
     return getChatSubtitleWithoutTyping(chatId);
 }
 
-function getChatLetters(chat) {
+function getChatLetters(chat, t) {
     if (!chat) return null;
 
-    let title = chat.title || 'Deleted account';
+    let title = chat.title || t('HiddenName');
     if (title.length === 0) return null;
 
     let letters = getLetters(title);
@@ -773,6 +770,28 @@ function getChatTitle(chatId, showSavedMessages = false, t = key => key) {
     return chat.title || t('HiddenName');
 }
 
+export function isDeletedPrivateChat(chatId) {
+    const fallbackValue = false;
+
+    const chat = ChatStore.get(chatId);
+    if (!chat) return fallbackValue;
+
+    switch (chat.type['@type']) {
+        case 'chatTypeBasicGroup':
+        case 'chatTypeSupergroup': {
+            return false;
+        }
+        case 'chatTypeSecret':
+        case 'chatTypePrivate': {
+            const user = UserStore.get(chat.type.user_id);
+
+            return user && user.type['@type'] === 'userTypeDeleted';
+        }
+    }
+
+    return fallbackValue;
+}
+
 function isMeChat(chatId) {
     const fallbackValue = false;
 
@@ -995,7 +1014,7 @@ function canSendMediaMessages(chatId) {
                     return false;
                 }
                 case 'chatMemberStatusCreator': {
-                    return can_send_media_messages && is_member;
+                    return is_member; //can_send_media_messages && is_member;
                 }
                 case 'chatMemberStatusLeft': {
                     return false;
@@ -1013,9 +1032,9 @@ function canSendMediaMessages(chatId) {
     return false;
 }
 
-function getChatShortTitle(chatId, showSavedMessages = false) {
+function getChatShortTitle(chatId, showSavedMessages = false, t = k => k) {
     if (isMeChat(chatId) && showSavedMessages) {
-        return 'Saved Messages';
+        return t('SavedMessages');
     }
 
     const chat = ChatStore.get(chatId);
@@ -1031,7 +1050,7 @@ function getChatShortTitle(chatId, showSavedMessages = false) {
         }
         case 'chatTypePrivate':
         case 'chatTypeSecret': {
-            return getUserShortName(chat.type.user_id);
+            return getUserShortName(chat.type.user_id, t);
         }
     }
 
@@ -1163,7 +1182,7 @@ function canSendPolls(chatId) {
                     return false;
                 }
                 case 'chatMemberStatusCreator': {
-                    return can_send_polls && is_member;
+                    return is_member; //can_send_polls && is_member;
                 }
                 case 'chatMemberStatusLeft': {
                     return false;
@@ -1245,7 +1264,7 @@ function canSendMessages(chatId) {
                     return false;
                 }
                 case 'chatMemberStatusCreator': {
-                    return can_send_messages && is_member;
+                    return is_member; //can_send_messages && is_member;
                 }
                 case 'chatMemberStatusLeft': {
                     return false;
@@ -1363,7 +1382,7 @@ function canPinMessages(chatId) {
                     return false;
                 }
                 case 'chatMemberStatusCreator': {
-                    return can_pin_messages && is_member;
+                    return is_member; //can_pin_messages && is_member;
                 }
                 case 'chatMemberStatusLeft': {
                     return false;

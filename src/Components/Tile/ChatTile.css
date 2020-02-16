@@ -8,20 +8,24 @@
 .chat-tile {
     z-index: 1;
     position: relative;
-    height: 54px;
-    width: 54px;
+    height: var(--tile-size);
+    width: var(--tile-size);
     border-radius: 50%;
     flex-shrink: 0;
 }
 
 .chat-tile.tile-small {
-    height: 33px;
-    width: 33px;
+    height: var(--tile-size-small);
+    width: var(--tile-size-small);
 }
 
 .chat-tile.tile-big {
-    height: 120px;
-    width: 120px;
+    height: var(--tile-size-big);
+    width: var(--tile-size-big);
+}
+
+.tile_color_0 {
+    background: var(--color-grey);
 }
 
 .tile_color_1 {
@@ -51,8 +55,7 @@
 
 .tile-text {
     font-size: 19px;
-    /*font-family: 'Nunito', sans-serif;*/
-    /*font-weight: 600;*/
+    line-height: normal;
     display: block;
     color: #fff;
     text-align: center;
@@ -62,10 +65,17 @@
 
 .tile-small .tile-text {
     font-size: 14px;
+    line-height: normal;
 }
 
 .tile-big .tile-text {
     font-size: 42px;
+    line-height: normal;
+}
+
+.tile-poll .tile-text {
+    font-size: 8px;
+    line-height: normal;
 }
 
 .tile-photo {

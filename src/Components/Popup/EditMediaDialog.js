@@ -7,8 +7,6 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import { compose } from 'recompose';
-import withStyles from '@material-ui/core/styles/withStyles';
 import { withTranslation } from 'react-i18next';
 import Button from '@material-ui/core/Button';
 import Dialog from '@material-ui/core/Dialog';
@@ -24,20 +22,6 @@ import MessageStore from '../../Stores/MessageStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './EditMediaDialog.css';
 
-const styles = theme => ({
-    editButton: {
-        position: 'absolute',
-        top: 30,
-        right: 30,
-        padding: 6,
-        color: 'white',
-        fontSize: 18,
-        background: 'rgba(0, 0, 0, 0.25)',
-        '&:hover': {
-            background: 'rgba(0, 0, 0, 0.25)'
-        }
-    }
-});
 class EditMediaDialog extends React.Component {
     constructor(props) {
         super(props);
@@ -95,6 +79,7 @@ class EditMediaDialog extends React.Component {
     }
 
     setFormattedText(formattedText) {
+        const { t } = this.props;
         const element = this.captionRef.current;
 
         if (!formattedText) {
@@ -104,7 +89,7 @@ class EditMediaDialog extends React.Component {
 
         const { text, entities } = formattedText;
         try {
-            const nodes = getNodes(text, entities);
+            const nodes = getNodes(text, entities, t);
             element.innerHTML = null;
             nodes.forEach(x => {
                 element.appendChild(x);
@@ -495,7 +480,7 @@ class EditMediaDialog extends React.Component {
                     <IconButton
                         disableRipple={true}
                         aria-label={t('Edit')}
-                        className={classes.editButton}
+                        className='edit-media-dialog-edit-button'
                         size='small'
                         onClick={this.handleEditMedia}>
                         <EditIcon fontSize='inherit' />
@@ -544,9 +529,4 @@ EditMediaDialog.propTypes = {
     open: PropTypes.bool
 };
 
-const enhance = compose(
-    withStyles(styles, { withTheme: true }),
-    withTranslation()
-);
-
-export default enhance(EditMediaDialog);
+export default withTranslation()(EditMediaDialog);

@@ -109,7 +109,7 @@ export function isMessageUnread(chatId, messageId) {
     return is_outgoing ? id > last_read_outbox_message_id : id > last_read_inbox_message_id;
 }
 
-function getAuthor(message) {
+function getAuthor(message, t = k => k) {
     if (!message) return null;
 
     const { forward_info } = message;
@@ -120,7 +120,7 @@ function getAuthor(message) {
                 if (forward_info.sender_user_id > 0) {
                     const user = UserStore.get(forward_info.sender_user_id);
                     if (user) {
-                        return getUserFullName(user);
+                        return getUserFullName(forward_info.sender_user_id, null, t);
                     }
                 }
                 break;
@@ -135,10 +135,10 @@ function getAuthor(message) {
         }
     }
 
-    return getTitle(message);
+    return getTitle(message, t);
 }
 
-function getTitle(message) {
+function getTitle(message, t = k => k) {
     if (!message) return null;
 
     const { sender_user_id, chat_id } = message;
@@ -146,7 +146,7 @@ function getTitle(message) {
     if (sender_user_id) {
         const user = UserStore.get(sender_user_id);
         if (user) {
-            return getUserFullName(user);
+            return getUserFullName(sender_user_id, null, t);
         }
     }
 
@@ -182,7 +182,7 @@ function searchCurrentChat(event, text) {
     searchChat(chatId, text);
 }
 
-function getFormattedText(formattedText) {
+function getFormattedText(formattedText, t = k => k) {
     if (formattedText['@type'] !== 'formattedText') return null;
 
     const { text, entities } = formattedText;
@@ -272,9 +272,8 @@ function getFormattedText(formattedText) {
                 break;
             }
             case 'textEntityTypeMentionName': {
-                const user = UserStore.get(type.user_id);
                 result.push(
-                    <MentionLink key={entityKey} userId={type.user_id} title={getUserFullName(user)}>
+                    <MentionLink key={entityKey} userId={type.user_id} title={getUserFullName(type.user_id, null, t)}>
                         {entityText}
                     </MentionLink>
                 );
@@ -349,7 +348,7 @@ function getFormattedText(formattedText) {
     return result;
 }
 
-function getText(message, meta) {
+function getText(message, meta, t = k => k) {
     if (!message) return null;
 
     let result = [];
@@ -360,9 +359,9 @@ function getText(message, meta) {
     const { text, caption } = content;
 
     if (text && text['@type'] === 'formattedText' && text.text) {
-        result = getFormattedText(text);
+        result = getFormattedText(text, t);
     } else if (caption && caption['@type'] === 'formattedText' && caption.text) {
-        const formattedText = getFormattedText(caption);
+        const formattedText = getFormattedText(caption, t);
         if (formattedText) {
             result = result.concat(formattedText);
         }
@@ -416,6 +415,7 @@ function getMedia(message, openMedia, hasTitle = false, hasCaption = false, inli
             return (
                 <Audio
                     title={hasTitle}
+                    caption={hasCaption}
                     chatId={chat_id}
                     messageId={id}
                     audio={content.audio}
@@ -427,6 +427,7 @@ function getMedia(message, openMedia, hasTitle = false, hasCaption = false, inli
             return (
                 <Call
                     title={hasTitle}
+                    caption={hasCaption}
                     chatId={chat_id}
                     messageId={id}
                     duraton={content.duration}
@@ -439,6 +440,7 @@ function getMedia(message, openMedia, hasTitle = false, hasCaption = false, inli
             return (
                 <Contact
                     title={hasTitle}
+                    caption={hasCaption}
                     chatId={chat_id}
                     messageId={id}
                     contact={content.contact}
@@ -450,6 +452,7 @@ function getMedia(message, openMedia, hasTitle = false, hasCaption = false, inli
             return (
                 <Document
                     title={hasTitle}
+                    caption={hasCaption}
                     chatId={chat_id}
                     messageId={id}
                     document={content.document}
@@ -583,8 +586,7 @@ function getForwardTitle(forwardInfo, t = key => key) {
         case 'messageForwardOriginUser': {
             const { sender_user_id } = origin;
 
-            const user = UserStore.get(sender_user_id);
-            return getUserFullName(user);
+            return getUserFullName(sender_user_id, null, t);
         }
         case 'messageForwardOriginHiddenUser': {
             const { sender_name } = origin;
@@ -903,7 +905,7 @@ function isContentOpened(chatId, messageId) {
     }
 }
 
-function getMediaTitle(message) {
+function getMediaTitle(message, t = k => k) {
     if (!message) return null;
 
     const { content } = message;
@@ -929,7 +931,7 @@ function getMediaTitle(message) {
         }
     }
 
-    return getAuthor(message);
+    return getAuthor(message, t);
 }
 
 function hasAudio(chatId, messageId) {
@@ -1949,7 +1951,7 @@ function addTextNode(offset, length, text, nodes) {
     nodes.push(node);
 }
 
-export function getNodes(text, entities) {
+export function getNodes(text, entities, t = k => k) {
     if (!text) return [];
 
     entities = (entities || []).sort((a, b) => {
@@ -2015,7 +2017,7 @@ export function getNodes(text, entities) {
                         if (user) {
                             const node = document.createElement('a');
                             // node.href = getDecodedUrl(url, false);
-                            node.title = getUserFullName(user);
+                            node.title = getUserFullName(user_id, null, t);
                             // node.target = '_blank';
                             // node.rel = 'noopener noreferrer';
                             node.dataset.userId = user_id;
@@ -2440,6 +2442,36 @@ export function isMessagePinned(chatId, messageId) {
     if (!chat) return false;
 
     return chat.pinned_message_id === messageId;
+}
+
+export function canMessageBeUnvoted(chatId, messageId) {
+    const message = MessageStore.get(chatId, messageId);
+    if (!message) return false;
+
+    const { content } = message;
+    if (!content) return;
+    if (content['@type'] !== 'messagePoll') return;
+
+    const { poll } = content;
+    if (!poll) return false;
+
+    const { type, is_closed, options } = poll;
+    if (!type) return false;
+    if (type['@type'] !== 'pollTypeRegular') return false;
+    if (is_closed) return false;
+
+    return options.some(x => x.is_chosen || x.is_being_chosen);
+}
+
+export function canMessageBeClosed(chatId, messageId) {
+    const message = MessageStore.get(chatId, messageId);
+    if (!message) return false;
+
+    const { content, can_be_edited } = message;
+    if (!content) return;
+    if (content['@type'] !== 'messagePoll') return;
+
+    return can_be_edited;
 }
 
 export {

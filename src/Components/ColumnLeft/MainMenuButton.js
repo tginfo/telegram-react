@@ -6,50 +6,41 @@
  */
 
 import React from 'react';
+import { withTranslation } from 'react-i18next';
 import IconButton from '@material-ui/core/IconButton';
 import MenuIcon from '@material-ui/icons/Menu';
+import ListItemIcon from '@material-ui/core/ListItemIcon';
+import ListItemText from '@material-ui/core/ListItemText';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
-import withStyles from '@material-ui/core/styles/withStyles';
-import { withTranslation } from 'react-i18next';
-import { compose } from 'recompose';
-import ThemePicker from './ThemePicker';
-import LanguagePicker from './LanguagePicker';
-import { update } from '../../registerServiceWorker';
+import ArchiveIcon from '../../Assets/Icons/Archive';
+import GroupIcon from '../../Assets/Icons/Group';
+import HelpIcon from '../../Assets/Icons/Help';
+import SavedIcon from '../../Assets/Icons/Saved';
+import SettingsIcon from '../../Assets/Icons/Settings';
+import UserIcon from '../../Assets/Icons/User';
 import { isAuthorizationReady } from '../../Utils/Common';
-import ApplicationStore from '../../Stores/ApplicationStore';
-import { WASM_FILE_HASH, WASM_FILE_NAME } from '../../Constants';
-
-const styles = {
-    menuIconButton: {
-        margin: '8px -2px 8px 12px'
-    },
-    searchIconButton: {
-        margin: '8px 12px 8px 0'
-    }
-};
-
-const menuAnchorOrigin = {
-    vertical: 'bottom',
-    horizontal: 'left'
-};
+import { openArchive, openChat } from '../../Actions/Client';
+import AppStore from '../../Stores/ApplicationStore';
+import UserStore from '../../Stores/UserStore';
+import TdLibController from '../../Controllers/TdLibController';
 
 class MainMenuButton extends React.Component {
     constructor(props) {
         super(props);
 
         this.state = {
-            authorizationState: ApplicationStore.getAuthorizationState(),
+            authorizationState: AppStore.getAuthorizationState(),
             anchorEl: null
         };
     }
 
     componentDidMount() {
-        ApplicationStore.on('updateAuthorizationState', this.onUpdateAuthorizationState);
+        AppStore.on('updateAuthorizationState', this.onUpdateAuthorizationState);
     }
 
     componentWillUnmount() {
-        ApplicationStore.off('updateAuthorizationState', this.onUpdateAuthorizationState);
+        AppStore.off('updateAuthorizationState', this.onUpdateAuthorizationState);
     }
 
     onUpdateAuthorizationState = update => {
@@ -67,39 +58,61 @@ class MainMenuButton extends React.Component {
         this.setState({ anchorEl: null });
     };
 
-    handleLogOut = () => {
-        this.handleMenuClose();
-
-        this.props.onLogOut();
-    };
-
     handleCheckUpdates = async () => {
         this.handleMenuClose();
 
-        const result = await fetch(`${WASM_FILE_NAME}?_sw-precache=${WASM_FILE_HASH}`);
-        console.log('wasm result', result);
         //await update();
     };
 
-    handleAppearance = event => {
+    handleNewGroup = event => {
         this.handleMenuClose();
-
-        this.themePicker.open();
     };
 
-    handleLanguage = event => {
+    handleContacts = event => {
         this.handleMenuClose();
-
-        this.languagePicker.open();
     };
 
-    setRef = ref => {
-        console.log(this);
-        this.languagePicker = ref;
+    handleArchived = event => {
+        this.handleMenuClose();
+
+        openArchive();
+    };
+
+    handleSaved = async event => {
+        this.handleMenuClose();
+
+        const chat = await TdLibController.send({
+            '@type': 'createPrivateChat',
+            user_id: UserStore.getMyId(),
+            force: true
+        });
+        if (!chat) return;
+
+        openChat(chat.id);
+    };
+
+    handleSettings = async event => {
+        this.handleMenuClose();
+
+        const chat = await TdLibController.send({
+            '@type': 'createPrivateChat',
+            user_id: UserStore.getMyId(),
+            force: true
+        });
+        if (!chat) return;
+
+        TdLibController.clientUpdate({
+            '@type': 'clientUpdateOpenSettings',
+            chatId: chat.id
+        });
+    };
+
+    handleHelp = event => {
+        this.handleMenuClose();
     };
 
     render() {
-        const { classes, t } = this.props;
+        const { t } = this.props;
         const { anchorEl, authorizationState } = this.state;
 
         const mainMenuControl = isAuthorizationReady(authorizationState) ? (
@@ -112,11 +125,46 @@ class MainMenuButton extends React.Component {
                     getContentAnchorEl={null}
                     disableAutoFocusItem
                     disableRestoreFocus={true}
-                    anchorOrigin={menuAnchorOrigin}>
-                    <MenuItem onClick={this.handleCheckUpdates}>{t('UpdateTelegram')}</MenuItem>
-                    <MenuItem onClick={this.handleAppearance}>{t('Appearance')}</MenuItem>
-                    <MenuItem onClick={this.handleLanguage}>{t('Language')}</MenuItem>
-                    <MenuItem onClick={this.handleLogOut}>{t('LogOut')}</MenuItem>
+                    anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'left'
+                    }}>
+                    <MenuItem onClick={this.handleNewGroup}>
+                        <ListItemIcon>
+                            <GroupIcon />
+                        </ListItemIcon>
+                        <ListItemText primary={t('NewGroup')} />
+                    </MenuItem>
+                    <MenuItem onClick={this.handleContacts}>
+                        <ListItemIcon>
+                            <UserIcon />
+                        </ListItemIcon>
+                        <ListItemText primary={t('Contacts')} />
+                    </MenuItem>
+                    <MenuItem onClick={this.handleArchived}>
+                        <ListItemIcon>
+                            <ArchiveIcon />
+                        </ListItemIcon>
+                        <ListItemText primary={t('Archived')} />
+                    </MenuItem>
+                    <MenuItem onClick={this.handleSaved}>
+                        <ListItemIcon>
+                            <SavedIcon />
+                        </ListItemIcon>
+                        <ListItemText primary={t('Saved')} />
+                    </MenuItem>
+                    <MenuItem onClick={this.handleSettings}>
+                        <ListItemIcon>
+                            <SettingsIcon />
+                        </ListItemIcon>
+                        <ListItemText primary={t('Settings')} />
+                    </MenuItem>
+                    <MenuItem onClick={this.handleHelp}>
+                        <ListItemIcon>
+                            <HelpIcon />
+                        </ListItemIcon>
+                        <ListItemText primary={t('SettingsHelp')} />
+                    </MenuItem>
                 </Menu>
             </>
         ) : null;
@@ -126,22 +174,15 @@ class MainMenuButton extends React.Component {
                 <IconButton
                     aria-owns={anchorEl ? 'simple-menu' : null}
                     aria-haspopup='true'
-                    className={classes.menuIconButton}
+                    className='header-left-button'
                     aria-label='Menu'
                     onClick={this.handleMenuOpen}>
                     <MenuIcon />
                 </IconButton>
                 {mainMenuControl}
-                <ThemePicker innerRef={ref => (this.themePicker = ref)} />
-                <LanguagePicker ref={ref => (this.languagePicker = ref)} />
             </>
         );
     }
 }
 
-const enhance = compose(
-    withTranslation(),
-    withStyles(styles, { withTheme: true })
-);
-
-export default enhance(MainMenuButton);
+export default withTranslation()(MainMenuButton);

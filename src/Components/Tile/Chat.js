@@ -13,17 +13,16 @@ import DialogTitle from './DialogTitle';
 import DialogStatus from './DialogStatus';
 import { isMeChat } from '../../Utils/Chat';
 import ChatStore from '../../Stores/ChatStore';
-import './ChatControl.css';
+import './Chat.css';
 
-class ChatControl extends React.Component {
+class Chat extends React.Component {
     constructor(props) {
         super(props);
-        if (process.env.NODE_ENV !== 'production') {
-            const { chatId } = this.props;
-            this.state = {
-                chat: ChatStore.get(chatId)
-            };
-        }
+
+        const { chatId } = this.props;
+        this.state = {
+            chat: ChatStore.get(chatId)
+        };
     }
 
     shouldComponentUpdate(nextProps, nextState) {
@@ -38,7 +37,7 @@ class ChatControl extends React.Component {
     };
 
     render() {
-        const { chatId, onTileSelect, showStatus, showSavedMessages, big } = this.props;
+        const { chatId, onTileSelect, showStatus, showSavedMessages, big, showTitle } = this.props;
 
         const isSavedMessages = isMeChat(chatId);
 
@@ -46,33 +45,37 @@ class ChatControl extends React.Component {
             <div className={classNames('chat', { 'chat-big': big })} onClick={this.handleClick}>
                 <div className='chat-wrapper'>
                     <ChatTile big={big} chatId={chatId} onSelect={onTileSelect} showSavedMessages={showSavedMessages} />
-                    <div className='dialog-inner-wrapper'>
-                        <div className='tile-first-row'>
-                            <DialogTitle chatId={chatId} showSavedMessages={showSavedMessages} />
-                        </div>
-                        {showStatus && !isSavedMessages && (
-                            <div className='tile-second-row'>
-                                <DialogStatus chatId={chatId} />
+                    {showTitle && (
+                        <div className='dialog-inner-wrapper'>
+                            <div className='tile-first-row'>
+                                <DialogTitle chatId={chatId} showSavedMessages={showSavedMessages} />
                             </div>
-                        )}
-                    </div>
+                            {showStatus && (!isSavedMessages || !showSavedMessages) && (
+                                <div className='tile-second-row'>
+                                    <DialogStatus chatId={chatId} />
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         );
     }
 }
 
-ChatControl.propTypes = {
+Chat.propTypes = {
     chatId: PropTypes.number.isRequired,
     showSavedMessages: PropTypes.bool,
     showStatus: PropTypes.bool,
+    showTitle: PropTypes.bool,
     onSelect: PropTypes.func,
     onTileSelect: PropTypes.func
 };
 
-ChatControl.defaultProps = {
+Chat.defaultProps = {
     showSavedMessages: true,
-    showStatus: true
+    showStatus: true,
+    showTitle: true
 };
 
-export default ChatControl;
+export default Chat;

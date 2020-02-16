@@ -5,17 +5,13 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-/*.user:hover{*/
-    /*background: #f2f6fa;*/
-/*}*/
+import React from 'react';
+import PropTypes from 'prop-types';
 
-.user{
-    width: 100%;
-    height: 100%;
+class PrivacySecurity extends React.Component {
+    render() {}
 }
 
-.user-wrapper{
-    display: flex;
-    align-items: center;
-    user-select: none;
-}
+PrivacySecurity.propTypes = {};
+
+export default PrivacySecurity;
