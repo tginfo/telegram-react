@@ -7,9 +7,8 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import copy from 'copy-to-clipboard';
 import classNames from 'classnames';
-import { compose } from 'recompose';
+import { compose } from '../../Utils/HOC';
 import { withSnackbar } from 'notistack';
 import { withTranslation } from 'react-i18next';
 import AlternateEmailIcon from '@material-ui/icons/AlternateEmail';
@@ -35,6 +34,7 @@ import Chat from '../Tile/Chat';
 import ChatDetailsHeader from './ChatDetailsHeader';
 import NotificationsListItem from './NotificationsListItem';
 import MoreListItem from './MoreListItem';
+import { copy } from '../../Utils/Text';
 import {
     getChatUsername,
     getChatPhoneNumber,
@@ -48,7 +48,7 @@ import {
 } from '../../Utils/Chat';
 import { getUserStatusOrder } from '../../Utils/User';
 import { loadUsersContent, loadChatsContent } from '../../Utils/File';
-import { formatPhoneNumber } from '../../Utils/Common';
+import { formatPhoneNumber } from '../../Utils/Phone';
 import { openChat, openUser, setProfileMediaViewerContent } from '../../Actions/Client';
 import { withRestoreRef, withSaveRef } from '../../Utils/HOC';
 import { NOTIFICATION_AUTO_HIDE_DURATION_MS } from '../../Constants';

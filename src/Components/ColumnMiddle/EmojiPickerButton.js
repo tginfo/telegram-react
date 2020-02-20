@@ -7,13 +7,15 @@
 
 import React from 'react';
 import classNames from 'classnames';
-import { compose } from 'recompose';
+import { compose } from '../../Utils/HOC';
 import withTheme from '@material-ui/core/styles/withTheme';
 import { withTranslation } from 'react-i18next';
 import Button from '@material-ui/core/Button';
 import IconButton from '@material-ui/core/IconButton';
 import InsertEmoticonIcon from '../../Assets/Icons/Smile';
 import { Picker as EmojiPicker } from 'emoji-mart';
+// import { NimblePicker as EmojiPicker } from 'emoji-mart';
+// import data from 'emoji-mart/data/messenger.json'
 import StickerPreview from './StickerPreview';
 import StickersPicker from './StickersPicker';
 import { isAppleDevice } from '../../Utils/Common';
@@ -206,6 +208,7 @@ class EmojiPickerButton extends React.Component {
             this.picker = (
                 <EmojiPicker
                     ref={this.emojiPickerRef}
+                    // data={data}
                     set='apple'
                     showPreview={false}
                     showSkinTones={false}

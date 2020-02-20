@@ -5,8 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { EventEmitter } from 'events';
-import Cookies from 'universal-cookie';
+import EventEmitter from './EventEmitter';
 import InputTypingManager from '../Utils/InputTypingManager';
 import UserStore from './UserStore';
 import TdLibController from '../Controllers/TdLibController';
@@ -19,7 +18,6 @@ class ChatStore extends EventEmitter {
         this.loadClientData();
 
         this.addTdLibListener();
-        this.setMaxListeners(Infinity);
     }
 
     reset = () => {
@@ -32,13 +30,17 @@ class ChatStore extends EventEmitter {
     };
 
     loadClientData = () => {
-        const cookies = new Cookies();
         const clientData = new Map();
         try {
-            const data = cookies.get('clientData');
-            Object.keys(data).forEach(key => {
-                clientData.set(Number(key), data[key]);
-            });
+            let data = localStorage.get('clientData');
+            if (data) {
+                data = JSON.parse(data);
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        clientData.set(Number(key), data[key]);
+                    });
+                }
+            }
         } catch {}
 
         this.clientData = clientData;
@@ -53,8 +55,7 @@ class ChatStore extends EventEmitter {
             return obj;
         }, {});
 
-        const cookies = new Cookies();
-        cookies.set('clientData', obj);
+        localStorage.setItem('clientData', JSON.stringify(obj));
     };
 
     updateChatChatList(chatId, chatList) {
@@ -457,8 +458,8 @@ class ChatStore extends EventEmitter {
     };
 
     addTdLibListener = () => {
-        TdLibController.addListener('update', this.onUpdate);
-        TdLibController.addListener('clientUpdate', this.onClientUpdate);
+        TdLibController.on('update', this.onUpdate);
+        TdLibController.on('clientUpdate', this.onClientUpdate);
     };
 
     removeTdLibListener = () => {

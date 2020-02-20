@@ -6,8 +6,7 @@
  */
 
 import React, { Component } from 'react';
-import Cookies from 'universal-cookie';
-import { compose } from 'recompose';
+import { compose } from './Utils/HOC';
 import withLanguage from './Language';
 import withTelegramTheme from './Theme';
 import withTheme from '@material-ui/core/styles/withTheme';
@@ -24,6 +23,7 @@ import InactivePage from './Components/InactivePage';
 import NativeAppPage from './Components/NativeAppPage';
 import StubPage from './Components/StubPage';
 import registerServiceWorker from './registerServiceWorker';
+import { loadData } from './Utils/Phone';
 import { isMobile } from './Utils/Common';
 import { OPTIMIZATIONS_FIRST_START } from './Constants';
 import ChatStore from './Stores/ChatStore';
@@ -59,7 +59,8 @@ class TelegramApp extends Component {
     }
 
     componentDidMount() {
-        TdLibController.addListener('update', this.onUpdate);
+        setTimeout(() => loadData(), 1500);
+        TdLibController.on('update', this.onUpdate);
 
         AppStore.on('clientUpdateAppInactive', this.onClientUpdateAppInactive);
         AppStore.on('clientUpdateTdLibDatabaseExists', this.onClientUpdateTdLibDatabaseExists);
@@ -94,13 +95,9 @@ class TelegramApp extends Component {
             if (!this.checkServiceWorker) {
                 this.checkServiceWorker = true;
 
-                const cookieEnabled = navigator.cookieEnabled;
-                if (cookieEnabled) {
-                    const cookies = new Cookies();
-                    const register = cookies.get('register');
-                    if (!register) {
-                        registerServiceWorker();
-                    }
+                const register = localStorage.getItem('register');
+                if (!register) {
+                    registerServiceWorker();
                 }
             }
         }
