@@ -13,6 +13,10 @@ import DialogsList from './DialogsList';
 import EditProfile from './Settings/EditProfile';
 import Notifications from './Settings/Notifications';
 import Settings from './Settings/Settings';
+import Contacts from './Contacts';
+import Language from './Language';
+import PrivacySecurity from './Settings/PrivacySecurity';
+import ActiveSessions from './Settings/ActiveSessions';
 import UpdatePanel from './UpdatePanel';
 import { openChat } from '../../Actions/Client';
 import { getArchiveTitle } from '../../Utils/Archive';
@@ -21,8 +25,10 @@ import AppStore from '../../Stores/ApplicationStore';
 import CacheStore from '../../Stores/CacheStore';
 import ChatStore from '../../Stores/ChatStore';
 import FileStore from '../../Stores/FileStore';
+import UserStore from '../../Stores/UserStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './Dialogs.css';
+import { getUserFullName } from '../../Utils/User';
 
 class Dialogs extends Component {
     constructor(props) {
@@ -46,6 +52,13 @@ class Dialogs extends Component {
             isChatDetailsVisible,
             openSearch: false,
             openArchive: false,
+            openSettings: false,
+            openEditProfile: false,
+            openNotifications: false,
+            openPrivacySecurity: false,
+            openActiveSessions: false,
+            openLanguage: false,
+            openContacts: false,
 
             searchChatId: 0,
             searchText: null,
@@ -65,6 +78,10 @@ class Dialogs extends Component {
             openSettings,
             openEditProfile,
             openNotifications,
+            openPrivacySecurity,
+            openActiveSessions,
+            openLanguage,
+            openContacts,
             openArchive,
             searchChatId,
             searchText
@@ -94,6 +111,10 @@ class Dialogs extends Component {
             return true;
         }
 
+        if (nextState.openSettings !== openSettings) {
+            return true;
+        }
+
         if (nextState.openEditProfile !== openEditProfile) {
             return true;
         }
@@ -102,11 +123,23 @@ class Dialogs extends Component {
             return true;
         }
 
-        if (nextState.openSearch !== openSearch) {
+        if (nextState.openPrivacySecurity !== openPrivacySecurity) {
             return true;
         }
 
-        if (nextState.openSettings !== openSettings) {
+        if (nextState.openActiveSessions !== openActiveSessions) {
+            return true;
+        }
+
+        if (nextState.openLanguage !== openLanguage) {
+            return true;
+        }
+
+        if (nextState.openContacts !== openContacts) {
+            return true;
+        }
+
+        if (nextState.openSearch !== openSearch) {
             return true;
         }
 
@@ -146,8 +179,12 @@ class Dialogs extends Component {
         ChatStore.on('clientUpdateCloseArchive', this.onClientUpdateCloseArchive);
         ChatStore.on('clientUpdateOpenEditProfile', this.onClientUpdateOpenEditProfile);
         ChatStore.on('clientUpdateCloseEditProfile', this.onClientUpdateCloseEditProfile);
-        ChatStore.on('clientUpdateOpenNotifications', this.onClientUpdateOpenNotifications);
-        ChatStore.on('clientUpdateCloseNotifications', this.onClientUpdateCloseNotifications);
+        ChatStore.on('clientUpdateNotificationsPage', this.onClientUpdateNotificationsPage);
+        ChatStore.on('clientUpdateOpenContacts', this.onClientUpdateOpenContacts);
+        ChatStore.on('clientUpdateCloseContacts', this.onClientUpdateCloseContacts);
+        ChatStore.on('clientUpdatePrivacySecurityPage', this.onClientUpdatePrivacySecurityPage);
+        ChatStore.on('clientUpdateActiveSessionsPage', this.onClientUpdateActiveSessionsPage);
+        ChatStore.on('clientUpdateLanguagePage', this.onClientUpdateLanguagePage);
     }
 
     componentWillUnmount() {
@@ -169,8 +206,12 @@ class Dialogs extends Component {
         ChatStore.off('clientUpdateCloseArchive', this.onClientUpdateCloseArchive);
         ChatStore.off('clientUpdateOpenEditProfile', this.onClientUpdateOpenEditProfile);
         ChatStore.off('clientUpdateCloseEditProfile', this.onClientUpdateCloseEditProfile);
-        ChatStore.off('clientUpdateOpenNotifications', this.onClientUpdateOpenNotifications);
-        ChatStore.off('clientUpdateCloseNotifications', this.onClientUpdateCloseNotifications);
+        ChatStore.off('clientUpdateNotificationsPage', this.onClientUpdateNotificationsPage);
+        ChatStore.off('clientUpdateOpenContacts', this.onClientUpdateOpenContacts);
+        ChatStore.off('clientUpdateCloseContacts', this.onClientUpdateCloseContacts);
+        ChatStore.off('clientUpdatePrivacySecurityPage', this.onClientUpdatePrivacySecurityPage);
+        ChatStore.off('clientUpdateActiveSessionsPage', this.onClientUpdateActiveSessionsPage);
+        ChatStore.off('clientUpdateLanguagePage', this.onClientUpdateLanguagePage);
     }
 
     async loadCache() {
@@ -265,12 +306,36 @@ class Dialogs extends Component {
         this.setState({ openEditProfile: false });
     };
 
-    onClientUpdateOpenNotifications = update => {
-        this.setState({ openNotifications: true });
+    onClientUpdateNotificationsPage = update => {
+        const { opened } = update;
+
+        this.setState({ openNotifications: opened });
     };
 
-    onClientUpdateCloseNotifications = update => {
-        this.setState({ openNotifications: false });
+    onClientUpdateOpenContacts = async update => {
+        this.setState({ openContacts: true });
+    };
+
+    onClientUpdatePrivacySecurityPage = update => {
+        const { opened } = update;
+
+        this.setState({ openPrivacySecurity: opened });
+    };
+
+    onClientUpdateActiveSessionsPage = update => {
+        const { opened, sessions } = update;
+
+        this.setState({ openActiveSessions: opened, sessions });
+    };
+
+    onClientUpdateLanguagePage = update => {
+        const { opened } = update;
+
+        this.setState({ openLanguage: opened });
+    };
+
+    onClientUpdateCloseContacts = update => {
+        this.setState({ openContacts: false });
     };
 
     onClientUpdateOpenSettings = update => {
@@ -389,6 +454,11 @@ class Dialogs extends Component {
             openSettings,
             openEditProfile,
             openNotifications,
+            openPrivacySecurity,
+            openActiveSessions,
+            sessions,
+            openLanguage,
+            openContacts,
             meChatId,
             openArchive,
             openSearch,
@@ -411,6 +481,10 @@ class Dialogs extends Component {
                     openSearch={openSearch}
                     openEditProfile={openEditProfile}
                     openNotifications={openNotifications}
+                    openPrivacySecurity={openPrivacySecurity}
+                    openActiveSessions={openActiveSessions}
+                    openLanguage={openLanguage}
+                    openContacts={openContacts}
                     onClick={this.handleHeaderClick}
                     onSearch={this.handleSearch}
                     onSearchTextChange={this.handleSearchTextChange}
@@ -445,6 +519,10 @@ class Dialogs extends Component {
                     {openSettings && <Settings chatId={meChatId} />}
                     {openEditProfile && <EditProfile chatId={meChatId} />}
                     {openNotifications && <Notifications chatId={meChatId} />}
+                    {openPrivacySecurity && <PrivacySecurity />}
+                    {openActiveSessions && <ActiveSessions sessions={sessions} />}
+                    {openLanguage && <Language />}
+                    {openContacts && <Contacts />}
                 </div>
                 <UpdatePanel />
             </div>

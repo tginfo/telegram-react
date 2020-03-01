@@ -15,6 +15,7 @@
     --error: #e53935;
 
     --tile-size: 54px;
+    --user-tile-size: 48px;
     --tile-size-extra-small: 16px;
     --tile-size-small: 33px;
     --tile-size-big: 120px;
@@ -25,6 +26,7 @@
     --color-accent-dark: #50a2e9;
     --color-grey700: rgba(97, 97, 97, 0.9);
     --color-grey: #9aa7b2;
+    --color-hover: #f4f4f5;
 
     --border: #dadce0;
     --panel-background: #ffffff;

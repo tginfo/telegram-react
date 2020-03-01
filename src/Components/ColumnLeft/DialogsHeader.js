@@ -10,17 +10,17 @@ import PropTypes from 'prop-types';
 import { withTranslation } from 'react-i18next';
 import { withRestoreRef, withSaveRef, compose } from '../../Utils/HOC';
 import { IconButton } from '@material-ui/core';
-import ArrowBackIcon from '@material-ui/icons/ArrowBack';
-import SearchIcon from '@material-ui/icons/Search';
-import CloseIcon from '../../Assets/Icons/Close';
 import SpeedDialIcon from '@material-ui/lab/SpeedDialIcon';
+import ArrowBackIcon from '../../Assets/Icons/Back';
+import CloseIcon from '../../Assets/Icons/Close';
+import SearchIcon from '../../Assets/Icons/Search';
 import MainMenuButton from './MainMenuButton';
+import SettingsMenuButton from './Settings/SettingsMenuButton';
 import { isAuthorizationReady } from '../../Utils/Common';
 import { ANIMATION_DURATION_100MS } from '../../Constants';
 import AppStore from '../../Stores/ApplicationStore';
 import TdLibController from '../../Controllers/TdLibController';
 import '../ColumnMiddle/Header.css';
-import SettingsMenuButton from './Settings/SettingsMenuButton';
 
 class DialogsHeader extends React.Component {
     constructor(props) {
@@ -147,26 +147,36 @@ class DialogsHeader extends React.Component {
     };
 
     render() {
-        const { onClick, openArchive, openSearch, openSettings, openEditProfile, openNotifications, t } = this.props;
+        const {
+            onClick,
+            openArchive,
+            openSearch,
+            openSettings,
+            openLanguage,
+            openEditProfile,
+            openNotifications,
+            openPrivacySecurity,
+            openActiveSessions,
+            openContacts,
+            t
+        } = this.props;
 
         let content = null;
         let showRightButton = true;
         if (openSearch) {
             content = (
-                <>
-                    <div className='header-search-input grow'>
-                        <div
-                            id='header-search-inputbox'
-                            ref={this.searchInputRef}
-                            placeholder={t('Search')}
-                            contentEditable
-                            suppressContentEditableWarning
-                            onKeyDown={this.handleKeyDown}
-                            onKeyUp={this.handleKeyUp}
-                            onPaste={this.handlePaste}
-                        />
-                    </div>
-                </>
+                <div className='header-search-input grow'>
+                    <div
+                        id='header-search-inputbox'
+                        ref={this.searchInputRef}
+                        placeholder={t('Search')}
+                        contentEditable
+                        suppressContentEditableWarning
+                        onKeyDown={this.handleKeyDown}
+                        onKeyUp={this.handleKeyUp}
+                        onPaste={this.handlePaste}
+                    />
+                </div>
             );
         } else if (openArchive) {
             content = (
@@ -191,18 +201,9 @@ class DialogsHeader extends React.Component {
                     </div>
                 </>
             );
-        } else if (openNotifications) {
+        } else if (openLanguage || openNotifications || openPrivacySecurity || openActiveSessions) {
             showRightButton = false;
-            content = (
-                <>
-                    <IconButton className='header-left-button' onClick={this.handleCloseNotifications}>
-                        <ArrowBackIcon />
-                    </IconButton>
-                    <div className='header-status grow cursor-pointer' onClick={onClick}>
-                        <span className='header-status-content'>{t('Notifications')}</span>
-                    </div>
-                </>
-            );
+            content = null;
         } else if (openSettings) {
             showRightButton = false;
             content = (
@@ -216,6 +217,9 @@ class DialogsHeader extends React.Component {
                     <SettingsMenuButton />
                 </>
             );
+        } else if (openContacts) {
+            showRightButton = false;
+            content = null;
         } else {
             content = (
                 <>
@@ -247,6 +251,12 @@ DialogsHeader.propTypes = {
     openSearch: PropTypes.bool.isRequired,
     openArchive: PropTypes.bool.isRequired,
     openSettings: PropTypes.bool.isRequired,
+    openEditProfile: PropTypes.bool.isRequired,
+    openNotifications: PropTypes.bool.isRequired,
+    openPrivacySecurity: PropTypes.bool.isRequired,
+    openActiveSessions: PropTypes.bool.isRequired,
+    openLanguage: PropTypes.bool.isRequired,
+    openContacts: PropTypes.bool.isRequired,
     onClick: PropTypes.func.isRequired,
     onSearch: PropTypes.func.isRequired,
     onSearchTextChange: PropTypes.func.isRequired

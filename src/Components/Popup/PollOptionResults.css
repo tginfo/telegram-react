@@ -7,12 +7,14 @@
 .poll-option-results-caption {
     position: sticky;
     top: 0;
-    padding: 17px 24px 18px;
+    padding: 12px;
     color: var(--text-secondary);
     background: var(--background-paper);
     display: flex;
     flex-direction: row;
     z-index: 2;
+    font-size: 14px;
+    line-height: normal;
 }
 
 .poll-option-results-answer {
@@ -24,4 +26,11 @@
     margin-left: 9px;
     flex-grow: 0;
     flex-shrink: 0;
+}
+
+.poll-option-results-button {
+    border-radius: 0;
+    padding: 12px 8px;
+    margin: 0 -8px;
+    width: calc(100% + 16px);
 }

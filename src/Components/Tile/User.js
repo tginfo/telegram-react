@@ -11,9 +11,18 @@ import { withTranslation } from 'react-i18next';
 import UserTile from './UserTile';
 import UserStatus from './UserStatus';
 import { getUserFullName } from '../../Utils/User';
+import UserStore from './../../Stores/UserStore';
 import './User.css';
 
 class User extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            user: UserStore.get(props.userId)
+        };
+    }
+
     shouldComponentUpdate(nextProps, nextState) {
         return nextProps.userId !== this.props.userId;
     }
@@ -34,9 +43,9 @@ class User extends React.Component {
             <div className='user' onClick={this.handleClick}>
                 <div className='user-wrapper'>
                     <UserTile userId={userId} />
-                    <div className='dialog-inner-wrapper'>
+                    <div className='user-inner-wrapper'>
                         <div className='tile-first-row'>
-                            <div className='dialog-title'>{fullName}</div>
+                            <div className='user-title'>{fullName}</div>
                         </div>
                         {showStatus && (
                             <div className='tile-second-row'>

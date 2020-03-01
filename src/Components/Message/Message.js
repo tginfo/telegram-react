@@ -10,7 +10,13 @@ import classNames from 'classnames';
 import { compose } from '../../Utils/HOC';
 import { withTranslation } from 'react-i18next';
 import withTheme from '@material-ui/core/styles/withTheme';
+import Button from '@material-ui/core/Button';
 import CheckMarkIcon from '@material-ui/icons/Check';
+import Dialog from '@material-ui/core/Dialog';
+import DialogTitle from '@material-ui/core/DialogTitle';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogContentText from '@material-ui/core/DialogContentText';
+import DialogActions from '@material-ui/core/DialogActions';
 import Popover from '@material-ui/core/Popover';
 import MenuList from '@material-ui/core/MenuList';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -35,7 +41,7 @@ import {
     canMessageBeUnvoted,
     canMessageBeClosed
 } from '../../Utils/Message';
-import { canPinMessages, canSendMessages } from '../../Utils/Chat';
+import { canPinMessages, canSendMessages, isPrivateChat } from '../../Utils/Chat';
 import {
     openUser,
     openChat,
@@ -47,6 +53,8 @@ import {
     clearSelection,
     deleteMessages
 } from '../../Actions/Client';
+import { copy } from '../../Utils/Text';
+import { cancelPollAnswer, stopPoll } from '../../Actions/Poll';
 import { pinMessage, unpinMessage } from '../../Actions/Message';
 import { withRestoreRef, withSaveRef } from '../../Utils/HOC';
 import { getFitSize, getSize } from '../../Utils/Common';
@@ -54,13 +62,6 @@ import { PHOTO_DISPLAY_SIZE, PHOTO_SIZE } from '../../Constants';
 import MessageStore from '../../Stores/MessageStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './Message.css';
-import { cancelPollAnswer, stopPoll } from '../../Actions/Poll';
-import Dialog from '@material-ui/core/Dialog';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogContentText from '@material-ui/core/DialogContentText';
-import DialogActions from '@material-ui/core/DialogActions';
-import Button from '@material-ui/core/Button';
 
 class Message extends Component {
     constructor(props) {
@@ -72,7 +73,12 @@ class Message extends Component {
             emojiMatches: getEmojiMatches(chatId, messageId),
             selected: false,
             highlighted: false,
-            shook: false
+            shook: false,
+
+            confirmStopPoll: false,
+            contextMenu: false,
+            left: 0,
+            top: 0
         };
     }
 
@@ -355,9 +361,12 @@ class Message extends Component {
 
             const left = event.clientX;
             const top = event.clientY;
+            const copyLink =
+                event.target && event.target.tagName === 'A' && event.target.href ? event.target.href : null;
 
             this.setState({
                 contextMenu: true,
+                copyLink,
                 left,
                 top
             });
@@ -526,9 +535,29 @@ class Message extends Component {
         this.setState({ confirmStopPoll: false });
     };
 
+    handleCopyLink = event => {
+        const { copyLink } = this.state;
+
+        this.handleCloseContextMenu(event);
+
+        if (!copyLink) return;
+
+        copy(copyLink);
+    };
+
     render() {
         const { t, chatId, messageId, showUnreadSeparator, showTail, showTitle } = this.props;
-        const { emojiMatches, selected, highlighted, shook, contextMenu, left, top, confirmStopPoll } = this.state;
+        const {
+            emojiMatches,
+            selected,
+            highlighted,
+            shook,
+            copyLink,
+            contextMenu,
+            left,
+            top,
+            confirmStopPoll
+        } = this.state;
 
         const message = MessageStore.get(chatId, messageId);
         if (!message) return <div>[empty message]</div>;
@@ -548,7 +577,9 @@ class Message extends Component {
         const text = getText(message, inlineMeta, t);
         const hasCaption = text !== null && text.length > 0;
         const showForward = showMessageForward(chatId, messageId);
-        const hasTitle = showTitle || showForward || Boolean(reply_to_message_id);
+        const showReply = Boolean(reply_to_message_id);
+        const suppressTitle = isPrivateChat(chatId);
+        const hasTitle = (!suppressTitle && showTitle) || showForward || showReply;
         const webPage = getWebPage(message);
         const media = getMedia(message, this.openMedia, hasTitle, hasCaption, inlineMeta);
 
@@ -606,7 +637,7 @@ class Message extends Component {
                                 'message-bubble-out': withBubble && is_outgoing
                             })}
                             style={style}>
-                            {withBubble && (showTitle || showForward) && (
+                            {withBubble && !suppressTitle && (showTitle || showForward) && (
                                 <div className='message-title'>
                                     {showTitle && !showForward && (
                                         <MessageAuthor chatId={chatId} openChat userId={sender_user_id} openUser />
@@ -614,7 +645,7 @@ class Message extends Component {
                                     {showForward && <Forward forwardInfo={forward_info} />}
                                 </div>
                             )}
-                            {Boolean(reply_to_message_id) && (
+                            {showReply && (
                                 <Reply
                                     chatId={chatId}
                                     messageId={reply_to_message_id}
@@ -671,6 +702,7 @@ class Message extends Component {
                     }}
                     onMouseDown={e => e.stopPropagation()}>
                     <MenuList onClick={e => e.stopPropagation()}>
+                        {copyLink && <MenuItem onClick={this.handleCopyLink}>{t('CopyLink')}</MenuItem>}
                         {canBeReplied && <MenuItem onClick={this.handleReply}>{t('Reply')}</MenuItem>}
                         {canBePinned && (
                             <MenuItem onClick={this.handlePin}>{isPinned ? t('Unpin') : t('Pin')}</MenuItem>

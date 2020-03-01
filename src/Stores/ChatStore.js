@@ -379,6 +379,10 @@ class ChatStore extends EventEmitter {
 
     onClientUpdate = update => {
         switch (update['@type']) {
+            case 'clientUpdateActiveSessionsPage': {
+                this.emitUpdate(update);
+                break;
+            }
             case 'clientUpdateClearHistory': {
                 this.emitUpdate(update);
                 break;
@@ -387,11 +391,11 @@ class ChatStore extends EventEmitter {
                 this.emitUpdate(update);
                 break;
             }
-            case 'clientUpdateCloseEditProfile': {
+            case 'clientUpdateCloseContacts': {
                 this.emitUpdate(update);
                 break;
             }
-            case 'clientUpdateCloseNotifications': {
+            case 'clientUpdateCloseEditProfile': {
                 this.emitUpdate(update);
                 break;
             }
@@ -399,7 +403,15 @@ class ChatStore extends EventEmitter {
                 this.emitUpdate(update);
                 break;
             }
+            case 'clientUpdateLanguagePage': {
+                this.emitUpdate(update);
+                break;
+            }
             case 'clientUpdateLeaveChat': {
+                this.emitUpdate(update);
+                break;
+            }
+            case 'clientUpdateNotificationsPage': {
                 this.emitUpdate(update);
                 break;
             }
@@ -411,15 +423,19 @@ class ChatStore extends EventEmitter {
                 this.emitUpdate(update);
                 break;
             }
+            case 'clientUpdateOpenContacts': {
+                this.emitUpdate(update);
+                break;
+            }
             case 'clientUpdateOpenEditProfile': {
                 this.emitUpdate(update);
                 break;
             }
-            case 'clientUpdateOpenNotifications': {
+            case 'clientUpdateOpenSettings': {
                 this.emitUpdate(update);
                 break;
             }
-            case 'clientUpdateOpenSettings': {
+            case 'clientUpdatePrivacySecurityPage': {
                 this.emitUpdate(update);
                 break;
             }
