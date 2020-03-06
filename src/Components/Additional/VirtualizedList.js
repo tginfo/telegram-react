@@ -35,40 +35,53 @@ export class VirtualizedList extends React.Component {
         };
     }
 
+    componentDidUpdate(prevProps, prevState, snapshot) {
+        if (prevProps.source !== this.props.source) {
+            this.setViewportHeight();
+        }
+    }
+
     shouldComponentUpdate(nextProps, nextState, nextContext) {
         return true;
 
-        const { renderIds } = this.state;
-        const { renderIds: nextRenderIds } = nextState;
-
-        if (renderIds.size === nextRenderIds.size) {
-            renderIds.forEach((value, key) => {
-                if (!nextRenderIds.has(key)) {
-                    return true;
-                }
-            });
-
-            return false;
-        }
-
-        return true;
+        // const { renderIds } = this.state;
+        // const { renderIds: nextRenderIds } = nextState;
+        //
+        // if (renderIds.size === nextRenderIds.size) {
+        //     renderIds.forEach((value, key) => {
+        //         if (!nextRenderIds.has(key)) {
+        //             return true;
+        //         }
+        //     });
+        //
+        //     return false;
+        // }
+        //
+        // return true;
     }
 
     componentDidMount() {
-        const { source } = this.props;
-        const { scrollTop } = this.state;
+        window.addEventListener('resize', this.setViewportHeight, true);
 
         const { current } = this.listRef;
         if (!current) return;
-
         current.addEventListener('scroll', this.setScrollPosition, true);
 
-        const viewportHeight = parseFloat(window.getComputedStyle(current, null).getPropertyValue('height'));
+        this.setViewportHeight();
+    }
 
+    setViewportHeight = () => {
+        const { source } = this.props;
+        const { scrollTop } = this.state;
+        const { current } = this.listRef;
+        if (!current) return;
+
+        const viewportHeight = parseFloat(window.getComputedStyle(current, null).getPropertyValue('height'));
         const renderIds = this.getRenderIds(source, viewportHeight, scrollTop);
 
+        // console.log('[vl] setViewportHeight');
         this.setState({ viewportHeight, ...renderIds });
-    }
+    };
 
     getRenderIds(source, viewportHeight, scrollTop) {
         const renderIds = new Map();
@@ -84,9 +97,10 @@ export class VirtualizedList extends React.Component {
     }
 
     componentWillUnmount() {
+        window.removeEventListener('resize', this.setViewportHeight);
+
         const { current } = this.listRef;
         if (!current) return;
-
         current.removeEventListener('scroll', this.setScrollPosition);
     }
 
@@ -114,6 +128,10 @@ export class VirtualizedList extends React.Component {
         }
     };
 
+    getListRef() {
+        return this.listRef;
+    }
+
     isVisibleItem = (index, viewportHeight, scrollTop) => {
         const { overScanCount, rowHeight } = this.props;
 
@@ -128,15 +146,13 @@ export class VirtualizedList extends React.Component {
 
     render() {
         const { className, source, renderItem, rowHeight } = this.props;
-        const { viewportHeight, scrollTop, renderIds, renderIdsList } = this.state;
+        const { renderIds } = this.state;
 
         const items = (source || []).map((item, index) => {
             return renderIds.has(index) && renderItem({ index, style: style.item(index, rowHeight) });
         });
 
-        // const items = (renderIdsList || []).map((item, index) => {
-        //     return renderItem({ index: item, style: style.item(item, rowHeight) });
-        // });
+        // console.log('[vl] render', source, renderIds);
 
         return (
             <div ref={this.listRef} className={className}>

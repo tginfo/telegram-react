@@ -8,13 +8,31 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { withTranslation } from 'react-i18next';
-import SearchIcon from '../../../Assets/Icons/Search';
 import './SearchInput.css';
 
 class SearchInput extends React.Component {
     handleKeyDown = event => {
         if (event.keyCode === 13) {
             event.preventDefault();
+        } else if (event.keyCode === 27) {
+            const { onChange, onClose } = this.props;
+
+            const element = event.target;
+            if (!element) return;
+
+            if (element.innerText) {
+                event.stopPropagation();
+
+                element.innerText = null;
+                onChange(element.innerText);
+                return;
+            }
+
+            if (onClose) {
+                event.stopPropagation();
+                event.target.blur();
+                onClose();
+            }
         }
     };
 
@@ -48,7 +66,7 @@ class SearchInput extends React.Component {
     };
 
     render() {
-        const { inputRef, t } = this.props;
+        const { inputRef, t, onFocus } = this.props;
 
         return (
             <div className='search-input'>
@@ -63,6 +81,7 @@ class SearchInput extends React.Component {
                     onKeyUp={this.handleKeyUp}
                     onPaste={this.handlePaste}
                     onInput={this.handleInput}
+                    onFocus={onFocus}
                 />
             </div>
         );
@@ -71,7 +90,9 @@ class SearchInput extends React.Component {
 
 SearchInput.propTypes = {
     inputRef: PropTypes.object,
-    onChange: PropTypes.func
+    onChange: PropTypes.func,
+    onFocus: PropTypes.func,
+    onClose: PropTypes.func
 };
 
 export default withTranslation()(SearchInput);
