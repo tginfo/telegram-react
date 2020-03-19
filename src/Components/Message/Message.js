@@ -32,7 +32,6 @@ import WebPage from './Media/WebPage';
 import {
     getEmojiMatches,
     getText,
-    getMedia,
     getWebPage,
     openMedia,
     showMessageForward,
@@ -42,6 +41,7 @@ import {
     canMessageBeUnvoted,
     canMessageBeClosed
 } from '../../Utils/Message';
+import { getMedia } from '../../Utils/Media';
 import { canPinMessages, canSendMessages, isPrivateChat } from '../../Utils/Chat';
 import {
     openUser,
@@ -570,6 +570,7 @@ class Message extends Component {
         const inlineMeta = (
             <Meta
                 className='meta-hidden'
+                key={`${chatId}_${messageId}_meta`}
                 chatId={chatId}
                 messageId={messageId}
                 date={date}

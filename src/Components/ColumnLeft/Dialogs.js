@@ -7,16 +7,13 @@
 
 import React, { Component } from 'react';
 import classNames from 'classnames';
+import Archive from './Archive';
 import Search from './Search/Search';
 import DialogsHeader from './DialogsHeader';
 import DialogsList from './DialogsList';
-import EditProfile from './Settings/EditProfile';
-import Notifications from './Settings/Notifications';
+import SidebarPage from './SidebarPage';
 import Settings from './Settings/Settings';
 import Contacts from './Contacts';
-import Language from './Language';
-import PrivacySecurity from './Settings/PrivacySecurity';
-import ActiveSessions from './Settings/ActiveSessions';
 import UpdatePanel from './UpdatePanel';
 import { openChat } from '../../Actions/Client';
 import { getArchiveTitle } from '../../Utils/Archive';
@@ -27,7 +24,7 @@ import ChatStore from '../../Stores/ChatStore';
 import FileStore from '../../Stores/FileStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './Dialogs.css';
-import { Slide } from '@material-ui/core';
+import CSSTransition from 'react-transition-group/CSSTransition';
 
 class Dialogs extends Component {
     constructor(props) {
@@ -51,6 +48,8 @@ class Dialogs extends Component {
             isChatDetailsVisible,
             openSearch: false,
             openArchive: false,
+            openContacts: false,
+            openSettings: false,
 
             searchChatId: 0,
             searchText: null,
@@ -140,12 +139,9 @@ class Dialogs extends Component {
         ChatStore.on('updateChatLastMessage', this.onUpdateChatOrder);
         ChatStore.on('updateChatOrder', this.onUpdateChatOrder);
 
-        ChatStore.on('clientUpdateOpenSettings', this.onClientUpdateOpenSettings);
-        ChatStore.on('clientUpdateCloseSettings', this.onClientUpdateCloseSettings);
-        ChatStore.on('clientUpdateOpenArchive', this.onClientUpdateOpenArchive);
-        ChatStore.on('clientUpdateCloseArchive', this.onClientUpdateCloseArchive);
-        ChatStore.on('clientUpdateOpenContacts', this.onClientUpdateOpenContacts);
-        ChatStore.on('clientUpdateCloseContacts', this.onClientUpdateCloseContacts);
+        ChatStore.on('clientUpdateSettings', this.onClientUpdateSettings);
+        ChatStore.on('clientUpdateArchive', this.onClientUpdateArchive);
+        ChatStore.on('clientUpdateContacts', this.onClientUpdateContacts);
     }
 
     componentWillUnmount() {
@@ -161,12 +157,9 @@ class Dialogs extends Component {
         ChatStore.off('updateChatLastMessage', this.onUpdateChatOrder);
         ChatStore.off('updateChatOrder', this.onUpdateChatOrder);
 
-        ChatStore.off('clientUpdateOpenSettings', this.onClientUpdateOpenSettings);
-        ChatStore.off('clientUpdateCloseSettings', this.onClientUpdateCloseSettings);
-        ChatStore.off('clientUpdateOpenArchive', this.onClientUpdateOpenArchive);
-        ChatStore.off('clientUpdateCloseArchive', this.onClientUpdateCloseArchive);
-        ChatStore.off('clientUpdateOpenContacts', this.onClientUpdateOpenContacts);
-        ChatStore.off('clientUpdateCloseContacts', this.onClientUpdateCloseContacts);
+        ChatStore.off('clientUpdateSettings', this.onClientUpdateSettings);
+        ChatStore.off('clientUpdateArchive', this.onClientUpdateArchive);
+        ChatStore.off('clientUpdateContacts', this.onClientUpdateContacts);
     }
 
     async loadCache() {
@@ -253,28 +246,22 @@ class Dialogs extends Component {
         }
     };
 
-    onClientUpdateOpenContacts = async update => {
-        this.setState({ openContacts: true });
+    onClientUpdateContacts = async update => {
+        const { open } = update;
+
+        this.setState({ openContacts: open });
     };
 
-    onClientUpdateCloseContacts = update => {
-        this.setState({ openContacts: false });
+    onClientUpdateSettings = update => {
+        const { open, chatId } = update;
+
+        this.setState({ openSettings: open, meChatId: chatId });
     };
 
-    onClientUpdateOpenSettings = update => {
-        this.setState({ openSettings: true, meChatId: update.chatId });
-    };
+    onClientUpdateArchive = update => {
+        const { open } = update;
 
-    onClientUpdateCloseSettings = update => {
-        this.setState({ openSettings: false });
-    };
-
-    onClientUpdateOpenArchive = update => {
-        this.setState({ openArchive: true });
-    };
-
-    onClientUpdateCloseArchive = update => {
-        this.setState({ openArchive: false });
+        this.setState({ openArchive: open });
     };
 
     onClientUpdateThemeChange = update => {
@@ -345,7 +332,7 @@ class Dialogs extends Component {
         });
     };
 
-    handleClose = () => {
+    handleCloseSearch = () => {
         this.setState({
             openSearch: false,
             searchChatId: 0,
@@ -368,6 +355,18 @@ class Dialogs extends Component {
         const store = FileStore.getStore();
         loadChatsContent(store, chatIds);
     }
+
+    handleCloseArchive = () => {
+        this.setState({ openArchive: false });
+    };
+
+    handleCloseContacts = () => {
+        this.setState({ openContacts: false });
+    };
+
+    handleCloseSettings = () => {
+        this.setState({ openSettings: false });
+    };
 
     render() {
         const {
@@ -398,7 +397,6 @@ class Dialogs extends Component {
                     <div className='sidebar-page'>
                         <DialogsHeader
                             ref={this.dialogsHeaderRef}
-                            openArchive={openArchive}
                             openSearch={openSearch}
                             onClick={this.handleHeaderClick}
                             onSearch={this.handleSearch}
@@ -415,33 +413,38 @@ class Dialogs extends Component {
                                 open={true}
                                 onSaveCache={this.handleSaveCache}
                             />
-                            <DialogsList
-                                type='chatListArchive'
-                                ref={this.archiveListRef}
-                                cacheItems={archiveCacheItems}
-                                items={archiveItems}
-                                open={openArchive}
-                                onSaveCache={this.handleSaveCache}
-                            />
-                            {openSearch && (
+                            <CSSTransition
+                                classNames='search'
+                                timeout={200}
+                                in={openSearch}
+                                mountOnEnter={true}
+                                unmountOnExit={true}>
                                 <Search
                                     chatId={searchChatId}
                                     text={searchText}
                                     onSelectMessage={this.handleSelectMessage}
-                                    onClose={this.handleClose}
+                                    onClose={this.handleCloseSearch}
                                 />
-                            )}
+                            </CSSTransition>
                         </div>
                         <UpdatePanel />
                     </div>
 
-                    <Slide direction='right' in={openContacts} mountOnEnter unmountOnExit>
-                        <Contacts />
-                    </Slide>
+                    <SidebarPage open={openArchive} onClose={this.handleCloseArchive}>
+                        <Archive
+                            innerListRef={this.archiveListRef}
+                            items={archiveItems}
+                            cacheItems={archiveCacheItems}
+                        />
+                    </SidebarPage>
 
-                    <Slide direction='right' in={openSettings} mountOnEnter unmountOnExit>
+                    <SidebarPage open={openContacts} onClose={this.handleCloseContacts}>
+                        <Contacts />
+                    </SidebarPage>
+
+                    <SidebarPage open={openSettings} onClose={this.handleCloseSettings}>
                         <Settings chatId={meChatId} />
-                    </Slide>
+                    </SidebarPage>
                 </div>
             </>
         );

@@ -18,6 +18,7 @@ import IconButton from '@material-ui/core/IconButton';
 import ArrowBackIcon from '../../../Assets/Icons/Back';
 import Session from '../../Tile/Session';
 import StopIcon from '../../../Assets/Icons/Stop';
+import SectionHeader from '../SectionHeader';
 import TdLibController from '../../../Controllers/TdLibController';
 import './ActiveSessions.css';
 
@@ -97,49 +98,47 @@ class ActiveSessions extends React.Component {
 
         return (
             <>
-                <div className='settings-page'>
-                    <div className='header-master'>
-                        <IconButton className='header-left-button' onClick={onClose}>
-                            <ArrowBackIcon />
-                        </IconButton>
-                        <div className='header-status grow cursor-pointer'>
-                            <span className='header-status-content'>{t('SessionsTitle')}</span>
+                <div className='header-master'>
+                    <IconButton className='header-left-button' onClick={onClose}>
+                        <ArrowBackIcon />
+                    </IconButton>
+                    <div className='header-status grow cursor-pointer'>
+                        <span className='header-status-content'>{t('SessionsTitle')}</span>
+                    </div>
+                </div>
+                <div className='sidebar-page-content'>
+                    {Boolean(current) && (
+                        <div className='sidebar-page-section'>
+                            <SectionHeader>{t('CurrentSession')}</SectionHeader>
+                            <Session session={current} onTerminate={this.handleTerminate} />
+                            {other.length > 0 && (
+                                <ListItem
+                                    className='settings-list-item'
+                                    button
+                                    disableRipple
+                                    onClick={this.handleTerminateAllOther}>
+                                    <ListItemIcon>
+                                        <StopIcon color='secondary' />
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primaryTypographyProps={{ color: 'secondary' }}
+                                        primary={t('TerminateAllSessions')}
+                                    />
+                                </ListItem>
+                            )}
                         </div>
-                    </div>
-                    <div className='settings-page-content'>
-                        {Boolean(current) && (
-                            <div className='settings-section'>
-                                <div className='settings-section-header'>{t('CurrentSession')}</div>
-                                <Session session={current} onTerminate={this.handleTerminate} />
-                                {other.length > 0 && (
-                                    <ListItem
-                                        className='settings-list-item'
-                                        button
-                                        disableRipple
-                                        onClick={this.handleTerminateAllOther}>
-                                        <ListItemIcon>
-                                            <StopIcon color='secondary' />
-                                        </ListItemIcon>
-                                        <ListItemText
-                                            primaryTypographyProps={{ color: 'secondary' }}
-                                            primary={t('TerminateAllSessions')}
-                                        />
-                                    </ListItem>
-                                )}
+                    )}
+                    {other.length > 0 && (
+                        <>
+                            <div className='sidebar-page-section-divider' />
+                            <div className='sidebar-page-section'>
+                                <SectionHeader>{t('OtherSessions')}</SectionHeader>
+                                {other.map(x => (
+                                    <Session key={x.id} session={x} onTerminate={this.handleTerminate} />
+                                ))}
                             </div>
-                        )}
-                        {other.length > 0 && (
-                            <>
-                                <div className='settings-border' />
-                                <div className='settings-section'>
-                                    <div className='settings-section-header'>{t('OtherSessions')}</div>
-                                    {other.map(x => (
-                                        <Session key={x.id} session={x} onTerminate={this.handleTerminate} />
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </div>
                 <Dialog
                     transitionDuration={0}

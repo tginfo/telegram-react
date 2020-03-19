@@ -9,13 +9,13 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { withTranslation } from 'react-i18next';
 import { compose, withRestoreRef, withSaveRef } from '../../../Utils/HOC';
-import { Slide } from '@material-ui/core';
 import Main from './Main';
 import EditProfile from './EditProfile';
 import General from './General';
+import Language from '../Language';
 import Notifications from './Notifications';
 import PrivacySecurity from './PrivacySecurity';
-import Language from '../Language';
+import SidebarPage from '../SidebarPage';
 import { loadChatsContent } from '../../../Utils/File';
 import FileStore from '../../../Stores/FileStore';
 import UserStore from '../../../Stores/UserStore';
@@ -30,7 +30,7 @@ class Settings extends React.Component {
             openEditProfile: false,
             openGeneral: false,
             openNotifications: false,
-            openPrivacy: false,
+            openPrivacySecurity: false,
             openLanguage: false
         };
     }
@@ -85,6 +85,8 @@ class Settings extends React.Component {
     };
 
     closeNotifications = () => {
+        console.log('[sp] closeNotifications');
+
         this.setState({
             openNotifications: false
         });
@@ -116,49 +118,49 @@ class Settings extends React.Component {
 
     handleCloseSettings = () => {
         TdLibController.clientUpdate({
-            '@type': 'clientUpdateCloseSettings'
+            '@type': 'clientUpdateSettings',
+            open: false
         });
     };
 
     render() {
         const { chatId } = this.props;
         const { openEditProfile, openGeneral, openNotifications, openPrivacySecurity, openLanguage } = this.state;
+        console.log('[sp] render', this.state);
 
         return (
-            <div className='settings'>
-                <div className='settings-content'>
-                    <Main
-                        chatId={chatId}
-                        onClose={this.handleCloseSettings}
-                        onEditProfile={this.openEditProfile}
-                        onGeneral={this.openGeneral}
-                        onNotifications={this.openNotifications}
-                        onPrivacySecurity={this.openPrivacySecurity}
-                        onLanguage={this.openLanguage}
-                    />
-                    <Slide direction='right' in={openEditProfile} mountOnEnter unmountOnExit>
-                        <EditProfile chatId={chatId} onClose={this.closeEditProfile} />
-                    </Slide>
-                    <Slide direction='right' in={openGeneral} mountOnEnter unmountOnExit>
-                        <General chatId={chatId} onClose={this.closeGeneral} />
-                    </Slide>
-                    <Slide direction='right' in={openNotifications} mountOnEnter unmountOnExit>
-                        <Notifications chatId={chatId} onClose={this.closeNotifications} />
-                    </Slide>
-                    <Slide direction='right' in={openPrivacySecurity} mountOnEnter unmountOnExit>
-                        <PrivacySecurity onClose={this.closePrivacySecurity} />
-                    </Slide>
-                    <Slide direction='right' in={openLanguage} mountOnEnter unmountOnExit>
-                        <Language onClose={this.closeLanguage} />
-                    </Slide>
-                </div>
-            </div>
+            <>
+                <Main
+                    chatId={chatId}
+                    onClose={this.handleCloseSettings}
+                    onEditProfile={this.openEditProfile}
+                    onGeneral={this.openGeneral}
+                    onNotifications={this.openNotifications}
+                    onPrivacySecurity={this.openPrivacySecurity}
+                    onLanguage={this.openLanguage}
+                />
+                <SidebarPage open={openEditProfile} onClose={this.closeEditProfile}>
+                    <EditProfile chatId={chatId} />
+                </SidebarPage>
+                <SidebarPage open={openGeneral} onClose={this.closeGeneral}>
+                    <General chatId={chatId} />
+                </SidebarPage>
+                <SidebarPage open={openNotifications} onClose={this.closeNotifications}>
+                    <Notifications chatId={chatId} />
+                </SidebarPage>
+                <SidebarPage open={openPrivacySecurity} onClose={this.closePrivacySecurity}>
+                    <PrivacySecurity />
+                </SidebarPage>
+                <SidebarPage open={openLanguage} onClose={this.closeLanguage}>
+                    <Language />
+                </SidebarPage>
+            </>
         );
     }
 }
 
 Settings.propTypes = {
-    chatId: PropTypes.number.isRequired
+    chatId: PropTypes.number
 };
 
 const enhance = compose(

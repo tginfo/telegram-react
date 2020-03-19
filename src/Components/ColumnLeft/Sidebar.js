@@ -7,13 +7,16 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
+import './Sidebar.css';
 
-class ChatStatus extends React.Component {
+class Sidebar extends React.Component {
     render() {
-        return null;
+        const { children } = this.props;
+
+        return <div className='sidebar'>{children}</div>;
     }
 }
 
-ChatStatus.propTypes = {};
+Sidebar.propTypes = {};
 
-export default ChatStatus;
+export default Sidebar;

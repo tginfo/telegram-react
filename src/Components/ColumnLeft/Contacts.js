@@ -26,16 +26,13 @@ class UserListItem extends React.Component {
     shouldComponentUpdate(nextProps, nextState, nextContext) {
         const { userId, style } = this.props;
         if (nextProps.userId !== userId) {
-            // console.log('[vl] UserListItem.shouldUpdate true userId');
             return true;
         }
 
         if (nextProps.style.top !== style.top) {
-            // console.log('[vl] UserListItem.shouldUpdate true style');
             return true;
         }
 
-        // console.log('[vl] UserListItem.shouldUpdate false');
         return false;
     }
 
@@ -65,6 +62,15 @@ class Contacts extends React.Component {
 
         this.handleDebounceScroll = debounce(this.handleDebounceScroll, 100, false);
         this.handleThrottleScroll = throttle(this.handleThrottleScroll, 200, false);
+    }
+
+    componentDidMount() {
+        const { current } = this.searchInputRef;
+        if (current) {
+            setTimeout(() => current.focus(), 50);
+        }
+
+        this.loadContent();
     }
 
     handleScroll = event => {
@@ -100,15 +106,6 @@ class Contacts extends React.Component {
         }
     };
 
-    componentDidMount() {
-        const { current } = this.searchInputRef;
-        if (current) {
-            setTimeout(() => current.focus(), 50);
-        }
-
-        this.loadContent();
-    }
-
     async loadContent() {
         let contacts = CacheStore.contacts;
         if (!contacts) {
@@ -126,12 +123,6 @@ class Contacts extends React.Component {
             items: contacts
         });
     }
-
-    handleClose = () => {
-        TdLibController.clientUpdate({
-            '@type': 'clientUpdateCloseContacts'
-        });
-    };
 
     handleOpenUser = userId => {
         openUser(userId, false);
@@ -168,20 +159,22 @@ class Contacts extends React.Component {
         this.setState({ searchItems });
     };
 
+    handleClose = () => {
+        const { onClose } = this.props;
+
+        if (onClose) onClose();
+    };
+
     render() {
         const { items, searchItems } = this.state;
 
         return (
-            <div className='contacts'>
+            <>
                 <div className='header-master'>
                     <IconButton className='header-left-button' onClick={this.handleClose}>
                         <ArrowBackIcon />
                     </IconButton>
-                    <SearchInput
-                        inputRef={this.searchInputRef}
-                        onChange={this.handleSearch}
-                        onClose={this.handleClose}
-                    />
+                    <SearchInput inputRef={this.searchInputRef} onChange={this.handleSearch} />
                 </div>
                 <div className='contacts-content'>
                     {items && (
@@ -207,7 +200,7 @@ class Contacts extends React.Component {
                         />
                     )}
                 </div>
-            </div>
+            </>
         );
     }
 }

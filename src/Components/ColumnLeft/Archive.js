@@ -8,14 +8,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { withTranslation } from 'react-i18next';
-import { compose, withRestoreRef, withSaveRef } from '../../../Utils/HOC';
 import IconButton from '@material-ui/core/IconButton';
-import ArrowBackIcon from '../../../Assets/Icons/Back';
-import './General.css';
+import ArrowBackIcon from '../../Assets/Icons/Back';
+import DialogsList from './DialogsList';
 
-class General extends React.Component {
+class Archive extends React.Component {
     render() {
-        const { t, onClose } = this.props;
+        const { t, innerListRef, items, cacheItems, onClose } = this.props;
 
         return (
             <>
@@ -24,23 +23,23 @@ class General extends React.Component {
                         <ArrowBackIcon />
                     </IconButton>
                     <div className='header-status grow cursor-pointer'>
-                        <span className='header-status-content'>{t('GeneralSettings')}</span>
+                        <span className='header-status-content'>{t('ArchivedChats')}</span>
                     </div>
                 </div>
-                <div className='sidebar-page-content' />
+                <div className='dialogs-content'>
+                    <DialogsList
+                        type='chatListArchive'
+                        ref={innerListRef}
+                        cacheItems={cacheItems}
+                        open={true}
+                        items={items}
+                    />
+                </div>
             </>
         );
     }
 }
 
-General.propTypes = {
-    onClose: PropTypes.func
-};
+Archive.propTypes = {};
 
-const enhance = compose(
-    withSaveRef(),
-    withTranslation(),
-    withRestoreRef()
-);
-
-export default enhance(General);
+export default withTranslation()(Archive);

@@ -1,12 +1,12 @@
 {
   "homepage": "https://web.tginfo.me",
   "name": "telegram_react",
-  "version": "0.0.595",
+  "version": "0.0.604",
   "private": true,
   "dependencies": {
-    "@material-ui/core": "^4.8.0",
-    "@material-ui/icons": "^4.5.1",
-    "@material-ui/lab": "^4.0.0-alpha.36",
+    "@material-ui/core": "^4.9.5",
+    "@material-ui/icons": "^4.9.1",
+    "@material-ui/lab": "^4.0.0-alpha.45",
     "classnames": "^2.2.6",
     "emoji-mart": "^2.11.2",
     "emoji-regex": "^8.0.0",
@@ -21,6 +21,7 @@
     "react-i18next": "^10.6.0",
     "react-router-dom": "^5.0.0",
     "react-scripts": "^3.1.1",
+    "react-transition-group": "^4.3.0",
     "tdweb": "1.6.0"
   },
   "lint-staged": {
@@ -40,15 +41,14 @@
     "stats": "react-app-rewired build --bundle-report && npx webpack-bundle-analyzer ./build/bundle-stats.json"
   },
   "devDependencies": {
-    "prop-types": "^15.7.2",
     "customize-cra": "^0.5.0",
-    "husky": "^1.3.1",
-    "gh-pages": "^2.0.1",
+    "gh-pages": "^2.2.0",
     "lint-staged": "^8.1.5",
     "prettier": "^1.16.4",
+    "prop-types": "^15.7.2",
     "react-app-rewired": "^2.1.3",
-    "sw-precache-cra": "^1.0.0-alpha.2",
-    "webpack-bundle-analyzer": "^3.3.2",
+    "sw-precache-cra": "^1.0.0",
+    "webpack-bundle-analyzer": "^3.6.1",
     "worker-loader": "^2.0.0"
   },
   "browserslist": [

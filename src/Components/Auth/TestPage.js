@@ -8,12 +8,12 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-class ChatStatus extends React.Component {
+class TestPage extends React.Component {
     render() {
-        return null;
+        return 'Test Page';
     }
 }
 
-ChatStatus.propTypes = {};
+TestPage.propTypes = {};
 
-export default ChatStatus;
+export default TestPage;

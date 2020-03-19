@@ -25,7 +25,7 @@ function updateLightTheme(theme) {
     style.setProperty('--error', '#E53935');
 
     style.setProperty('--tile-size', '54px');
-    style.setProperty('--user-tile-size', '48px');
+    style.setProperty('--tile-size-normal', '48px');
     style.setProperty('--tile-size-extra-small', '16px');
     style.setProperty('--tile-size-small', '33px');
     style.setProperty('--tile-size-big', '120px');
@@ -33,12 +33,15 @@ function updateLightTheme(theme) {
     style.setProperty('--z-index-modal', theme.zIndex.modal);
 
     style.setProperty('--color-accent-main', theme.palette.primary.main);
-    style.setProperty('--color-accent-main22', theme.palette.primary.main + '22');
+    style.setProperty('--color-accent-main22', theme.palette.primary.main + '44');
     style.setProperty('--color-accent-dark', theme.palette.primary.dark);
     style.setProperty('--color-accent-light', theme.palette.primary.light);
     style.setProperty('--color-grey700', theme.palette.grey[700]);
     style.setProperty('--color-grey', '#9AA7B2');
-    style.setProperty('--color-search-input', '#f4f4f5');
+    style.setProperty('--color-hover', '#70757914');
+
+    style.setProperty('--search-input-background', '#f4f4f5');
+    style.setProperty('--search-input-icon', '#f4f4f5');
 
     style.setProperty('--header-color', '#000000');
     style.setProperty('--header-subtle-color', '#707579');
@@ -105,7 +108,7 @@ function updateDarkTheme(theme) {
     style.setProperty('--error', '#E53935');
 
     style.setProperty('--tile-size', '54px');
-    style.setProperty('--user-tile-size', '48px');
+    style.setProperty('--tile-size-normal', '48px');
     style.setProperty('--tile-size-extra-small', '16px');
     style.setProperty('--tile-size-small', '33px');
     style.setProperty('--tile-size-big', '120px');
@@ -113,12 +116,15 @@ function updateDarkTheme(theme) {
     style.setProperty('--z-index-modal', theme.zIndex.modal);
 
     style.setProperty('--color-accent-main', theme.palette.primary.main);
-    style.setProperty('--color-accent-main22', theme.palette.primary.main + '22');
+    style.setProperty('--color-accent-main22', theme.palette.primary.main + '44');
     style.setProperty('--color-accent-dark', theme.palette.primary.dark);
     style.setProperty('--color-accent-light', theme.palette.primary.light);
     style.setProperty('--color-grey700', theme.palette.grey[700]);
     style.setProperty('--color-grey', '#9AA7B2');
-    style.setProperty('--color-search-input', '#424242');
+    style.setProperty('--color-hover', 'rgba(112, 117, 121, 0.15)');
+
+    style.setProperty('--search-input-background', '#424242');
+    style.setProperty('--search-input-icon', '#fff');
 
     style.setProperty('--header-color', '#ffffff');
     style.setProperty('--header-subtle-color', theme.palette.text.secondary);

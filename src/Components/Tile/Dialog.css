@@ -10,17 +10,16 @@
 /*}*/
 
 .dialog {
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: pointer;
-    margin: 0 9px;
 }
 
 .dialog:hover {
-    background: var(--color-accent-main22);
+    background: var(--color-hover);
 }
 
-.dialog:hover .chat-status-icon {
-    background: var(--color-accent-main22);
+.dialog:hover .online-status-icon {
+    background: var(--color-hover);
 }
 
 .dialog-tile {
@@ -29,9 +28,8 @@
 }
 
 .dialog-active {
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: pointer;
-    margin: 0 9px;
     background: var(--color-accent-main);
     color: #fff;
 }
@@ -42,11 +40,11 @@
     margin: 6px -9px;
 }
 
-.item-selected .chat-status {
+.item-selected .online-status {
     background: var(--color-accent-main);
 }
 
-.item-selected .chat-status-indicator {
+.item-selected .online-status-indicator {
     background: #fff;
 }
 
@@ -55,6 +53,7 @@
 .item-selected .dialog-content,
 .item-selected .dialog-content-accent,
 .item-selected .dialog-meta,
+.item-selected .dialog-status,
 .item-selected .status {
     color: #fff;
 }
@@ -68,7 +67,7 @@
     display: flex;
 }
 
-.chat-big .dialog-inner-wrapper {
+.chat-big .chat-inner-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
