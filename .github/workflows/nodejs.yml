@@ -18,9 +18,7 @@ jobs:
       with:
         node-version: 12.x
     - name: Installing dependencies
-      run: |
-        npm install
-        npm ci
+      run: npm install
     - name: Setup environment
       run: |
         touch .env
