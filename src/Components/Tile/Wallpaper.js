@@ -10,6 +10,7 @@ import PropTypes from 'prop-types';
 import { getSrc } from '../../Utils/File';
 import FileStore from '../../Stores/FileStore';
 import './Wallpaper.css';
+import FileProgress from '../Viewer/FileProgress';
 
 class Wallpaper extends React.Component {
     state = {
@@ -89,6 +90,7 @@ class Wallpaper extends React.Component {
                         <div className='wallpaper-selected-inner' />
                     </>
                 )}
+                {document && document.document && <FileProgress file={document.document} cancelButton={false} />}
             </div>
         );
     }

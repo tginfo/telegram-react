@@ -1271,6 +1271,7 @@ function openMedia(chatId, messageId, fileCancel = true) {
         case 'messageAudio': {
             const { audio } = content;
             if (audio) {
+                // openDocument(audio, message, fileCancel);
                 openAudio(audio, message, fileCancel);
             }
 
