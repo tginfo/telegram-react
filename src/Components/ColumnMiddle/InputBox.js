@@ -33,6 +33,7 @@ import MessageStore from '../../Stores/MessageStore';
 import StickerStore from '../../Stores/StickerStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './InputBox.css';
+import { editMessage, replyMessage } from '../../Actions/Client';
 
 const EmojiPickerButton = React.lazy(() => import('./../ColumnMiddle/EmojiPickerButton'));
 
@@ -197,16 +198,19 @@ class InputBox extends Component {
             this.saveDraftAndSelection();
         }
 
+        const openEditMedia = messageId !== 0 && isEditedMedia(chatId, messageId);
         this.setState(
             {
                 editMessageId: messageId,
-                openEditMedia: messageId !== 0 && isEditedMedia(chatId, messageId)
+                openEditMedia
             },
             () => {
                 if (!this.state.openEditMedia) {
                     this.setEditMessage();
                     this.handleInput();
-                    this.focusInput();
+                    setTimeout(() => {
+                        this.focusInput();
+                    }, 0);
                 }
             }
         );
@@ -465,18 +469,11 @@ class InputBox extends Component {
 
         element.innerText = null;
         this.handleInput();
-        TdLibController.clientUpdate({
-            '@type': 'clientUpdateEditMessage',
-            chatId,
-            messageId: 0
-        });
+
+        editMessage(chatId, 0);
 
         if (!innerHTML) return;
         if (!innerHTML.trim()) return;
-
-        innerHTML = innerHTML.replace(/<div><br><\/div>/gi, '<br>');
-        innerHTML = innerHTML.replace(/<div>/gi, '<br>');
-        innerHTML = innerHTML.replace(/<\/div>/gi, '');
 
         const { text, entities } = getEntities(innerHTML);
 
@@ -522,6 +519,24 @@ class InputBox extends Component {
         this.attachPhotoRef.current.click();
     };
 
+    async getNewItem(file, sendAsFile) {
+        if (!file) return null;
+
+        const caption = this.newMessageRef.current.innerHTML;
+        if (caption) {
+            this.newMessageRef.current.innerHTML = null;
+            this.handleInput();
+        }
+
+        const media = sendAsFile ? await getMediaPhotoFromFile(file) : await getMediaDocumentFromFile(file);
+
+        return {
+            file,
+            media,
+            caption
+        };
+    }
+
     handleAttachPhotoComplete = async () => {
         const { files } = this.attachPhotoRef.current;
         if (files.length === 0) return;
@@ -530,11 +545,11 @@ class InputBox extends Component {
             const [newFile, ...rest] = Array.from(files);
             if (!newFile) return;
 
-            const newMedia = await getMediaPhotoFromFile(newFile);
+            const newItem = await this.getNewItem(newFile, true);
+
             this.setState({
                 openEditMedia: true,
-                newFile,
-                newMedia
+                newItem
             });
         } else {
             Array.from(files).forEach(async file => {
@@ -568,11 +583,11 @@ class InputBox extends Component {
             const [newFile, ...rest] = Array.from(files);
             if (!newFile) return;
 
-            const newMedia = await getMediaDocumentFromFile(newFile);
+            const newItem = await this.getNewItem(newFile, false);
+
             this.setState({
                 openEditMedia: true,
-                newFile,
-                newMedia
+                newItem
             });
         } else {
             Array.from(files).forEach(file => {
@@ -730,17 +745,9 @@ class InputBox extends Component {
     handleCancel = () => {
         const { chatId, editMessageId, replyToMessageId } = this.state;
         if (editMessageId) {
-            TdLibController.clientUpdate({
-                '@type': 'clientUpdateEditMessage',
-                chatId,
-                messageId: 0
-            });
+            editMessage(chatId, 0);
         } else if (replyToMessageId) {
-            TdLibController.clientUpdate({
-                '@type': 'clientUpdateReply',
-                chatId,
-                messageId: 0
-            });
+            replyMessage(chatId, 0);
         }
     };
 
@@ -866,26 +873,13 @@ class InputBox extends Component {
         if (!files.length) return;
 
         if (files.length === 1) {
-            const newFile = files[0];
-            if (newFile.type.startsWith('image')) {
-                const newMedia = await getMediaPhotoFromFile(newFile);
-                if (newMedia) {
-                    this.setState({
-                        newMedia,
-                        newFile,
-                        openEditMedia: true
-                    });
-                }
-            } else {
-                const newMedia = await getMediaDocumentFromFile(newFile);
-                if (newMedia) {
-                    this.setState({
-                        newMedia,
-                        newFile,
-                        openEditMedia: true
-                    });
-                }
-            }
+            const newItem = await this.getNewItem(files[0], files[0].type.startsWith('image'));
+            if (!newItem) return;
+
+            this.setState({
+                openEditMedia: true,
+                newItem
+            });
         } else {
             this.setState({ files });
         }
@@ -1114,6 +1108,9 @@ class InputBox extends Component {
 
     saveSelection() {
         this.selection = document.getSelection();
+        if (!this.selection) return;
+        if (!this.selection.rangeCount) return;
+
         this.range = this.selection.getRangeAt(0);
     }
 
@@ -1211,6 +1208,8 @@ class InputBox extends Component {
     };
 
     handleSendMedia = (content, file) => {
+        this.closeEditMediaDialog(false);
+
         switch (content['@type']) {
             case 'inputMessagePhoto': {
                 this.handleSendPhoto(content, file);
@@ -1223,13 +1222,22 @@ class InputBox extends Component {
         }
     };
 
-    closeEditMediaDialog() {
+    closeEditMediaDialog(cancel = true) {
+        const { newItem } = this.state;
+
         this.setState(
             {
-                openEditMedia: false
+                openEditMedia: false,
+                newItem: null
             },
             () => {
-                this.restoreSelection();
+                if (cancel && newItem && newItem.caption) {
+                    this.newMessageRef.current.innerHTML = newItem.caption;
+                    this.focusInput();
+                    this.handleInput();
+                } else {
+                    this.restoreSelection();
+                }
             }
         );
     }
@@ -1243,8 +1251,7 @@ class InputBox extends Component {
         const {
             chatId,
             editMessageId,
-            newFile,
-            newMedia,
+            newItem,
             replyToMessageId,
             files,
             newDraft,
@@ -1344,8 +1351,7 @@ class InputBox extends Component {
                     open={openEditMedia}
                     chatId={chatId}
                     messageId={editMessageId}
-                    newFile={newFile}
-                    newMedia={newMedia}
+                    newItem={newItem}
                     onEdit={this.handleEditMedia}
                     onSend={this.handleSendMedia}
                     onCancel={this.handleCancelEditMedia}
