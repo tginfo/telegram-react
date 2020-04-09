@@ -25,10 +25,9 @@ jobs:
         git config user.email ${{ secrets.COMMITER_EMAIL }}
         git config user.name ${{ secrets.COMMITER_NAME }}
     - name: Installing dependencies
-      run: |
-        rm package-lock.json
-        npm install
+      run: npm ci
     - name: Deploying
       run: npm run deploy
       env:
+        CI: ""
         CI_REPO: -r https://${{ secrets.PUSH_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git
