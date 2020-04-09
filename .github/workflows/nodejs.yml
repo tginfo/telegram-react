@@ -21,7 +21,6 @@ jobs:
       run: |
         rm package-lock.json
         npm install
-        npm install @material-ui/core/esm/internal/svg-icons/createSvgIcon
     - name: Setup environment
       run: |
         touch .env
