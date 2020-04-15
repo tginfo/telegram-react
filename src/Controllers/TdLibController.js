@@ -39,8 +39,8 @@ class TdLibController extends EventEmitter {
         this.parameters = {
             useTestDC: false,
             readOnly: false,
-            verbosity: 1,
-            jsVerbosity: 3,
+            verbosity: VERBOSITY_MAX,
+            jsVerbosity: VERBOSITY_JS_MAX,
             fastUpdating: true,
             useDatabase: false,
             mode: 'wasm'
