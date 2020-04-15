@@ -26,6 +26,13 @@ jobs:
         git config user.name ${{ secrets.COMMITER_NAME }}
     - name: Installing dependencies
       run: npm ci
+    - name: Copying TDWeb files
+      run: |
+        rm node_modules/tdweb/dist/*
+        cp public/*.worker.js node_modules/tdweb/dist/
+        cp public/*.wasm node_modules/tdweb/dist/
+        cp public/*.mem node_modules/tdweb/dist/
+        cp public/tdweb.js node_modules/tdweb/dist/
     - name: Deploying
       run: npm run deploy
       env:
