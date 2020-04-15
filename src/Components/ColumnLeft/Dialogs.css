@@ -6,8 +6,8 @@
  */
 
 .dialogs {
-    float: left;
-    width: calc(25% - 0px);
+    max-width: 25%;
+    flex: 1 1 25%;
     margin: 0;
     box-sizing: border-box;
     border-right: 1px solid var(--border);
@@ -25,6 +25,12 @@
     position: relative;
 }
 
-.dialogs-third-column {
-    width: calc(25% - 0px);
+.page-third-column .dialogs {
+    max-width: 25%;
+    flex: 1 1 25%;
+}
+
+.page-small .dialogs {
+    flex: 0 0 89px;
+    max-width: 89px;
 }

@@ -14,7 +14,9 @@ import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 import SpeedDialIcon from '@material-ui/lab/SpeedDialIcon';
 import ArrowBackIcon from '../../Assets/Icons/Back';
+import CloseIcon from '../../Assets/Icons/Close';
 import ArchiveIcon from '../../Assets/Icons/Archive';
+import SearchIcon from '../../Assets/Icons/Search';
 import MenuIcon from '../../Assets/Icons/Menu';
 import GroupIcon from '../../Assets/Icons/Group';
 import HelpIcon from '../../Assets/Icons/Help';
@@ -22,10 +24,11 @@ import SavedIcon from '../../Assets/Icons/Saved';
 import SettingsIcon from '../../Assets/Icons/Settings';
 import UserIcon from '../../Assets/Icons/User';
 import { isAuthorizationReady } from '../../Utils/Common';
-import { openArchive, openChat } from '../../Actions/Client';
+import { openArchive, openChat, searchChat } from '../../Actions/Client';
 import AppStore from '../../Stores/ApplicationStore';
 import UserStore from '../../Stores/UserStore';
 import TdLibController from '../../Controllers/TdLibController';
+import './MainMenuButton.css';
 
 class MainMenuButton extends React.Component {
     constructor(props) {
@@ -33,17 +36,26 @@ class MainMenuButton extends React.Component {
 
         this.state = {
             authorizationState: AppStore.getAuthorizationState(),
-            anchorEl: null
+            anchorEl: null,
+            isSmallWidth: AppStore.isSmallWidth
         };
     }
 
     componentDidMount() {
         AppStore.on('updateAuthorizationState', this.onUpdateAuthorizationState);
+        AppStore.on('clientUpdatePageWidth', this.onClientUpdatePageWidth);
     }
 
     componentWillUnmount() {
         AppStore.off('updateAuthorizationState', this.onUpdateAuthorizationState);
+        AppStore.off('clientUpdatePageWidth', this.onClientUpdatePageWidth);
     }
+
+    onClientUpdatePageWidth = update => {
+        const { isSmallWidth } = update;
+
+        this.setState({ isSmallWidth });
+    };
 
     onUpdateAuthorizationState = update => {
         this.setState({ authorizationState: update.authorization_state });
@@ -119,9 +131,15 @@ class MainMenuButton extends React.Component {
         this.handleMenuClose();
     };
 
+    handleSearch = () => {
+        this.handleMenuClose();
+
+        searchChat(0);
+    };
+
     render() {
-        const { t, showClose, onClose } = this.props;
-        const { anchorEl, authorizationState } = this.state;
+        const { t, timeout, popup, showClose, onClose } = this.props;
+        const { anchorEl, authorizationState, isSmallWidth } = this.state;
 
         const mainMenuControl =
             !showClose && isAuthorizationReady(authorizationState) ? (
@@ -143,6 +161,14 @@ class MainMenuButton extends React.Component {
                         </ListItemIcon>
                         <ListItemText primary={t('NewGroup')} />
                     </MenuItem>
+                    { isSmallWidth && (
+                        <MenuItem onClick={this.handleSearch}>
+                            <ListItemIcon>
+                                <SearchIcon />
+                            </ListItemIcon>
+                            <ListItemText primary={t('Search')} />
+                        </MenuItem>
+                    )}
                     <MenuItem onClick={this.handleContacts}>
                         <ListItemIcon>
                             <UserIcon />
@@ -176,15 +202,23 @@ class MainMenuButton extends React.Component {
                 </Menu>
             ) : null;
 
+        const closeIcon = popup
+            ? <CloseIcon/>
+            : <ArrowBackIcon/>;
+
         return (
             <>
                 <IconButton
                     aria-owns={anchorEl ? 'simple-menu' : null}
                     aria-haspopup='true'
-                    className='header-left-button'
+                    className='header-left-button main-menu-button'
                     aria-label='Menu'
                     onClick={showClose ? onClose : this.handleMenuOpen}>
-                    <SpeedDialIcon open={showClose} openIcon={<ArrowBackIcon />} icon={<MenuIcon />} />
+                    { timeout
+                        ? (<SpeedDialIcon open={showClose} openIcon={<ArrowBackIcon />} icon={<MenuIcon />} />)
+                        : (<>{showClose ? closeIcon : <MenuIcon />}</>)
+                    }
+
                 </IconButton>
                 {mainMenuControl}
             </>

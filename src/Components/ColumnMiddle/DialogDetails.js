@@ -13,11 +13,11 @@ import Header from './Header';
 import HeaderPlayer from '../Player/HeaderPlayer';
 import MessagesList from './MessagesList';
 import StickerSetDialog from '../Popup/StickerSetDialog';
+import { getSrc } from '../../Utils/File';
 import AppStore from '../../Stores/ApplicationStore';
 import ChatStore from '../../Stores/ChatStore';
-import './DialogDetails.css';
-import { getSrc } from '../../Utils/File';
 import FileStore from '../../Stores/FileStore';
+import './DialogDetails.css';
 
 class DialogDetails extends Component {
     constructor(props) {
@@ -192,7 +192,6 @@ class DialogDetails extends Component {
             return (<MessageGroup key={x.key} senderUserId={x.senderUserId} messages={x.messages} onSelectChat={this.props.onSelectChat}/>);
         });*/
         const { chatId, messageId, wallpaper } = this.state;
-        const { isChatDetailsVisible } = AppStore;
 
         let style = null;
         let src = null;
@@ -211,13 +210,11 @@ class DialogDetails extends Component {
 
             style = {
                 backgroundImage: src ? `url(${src})` : null
-            };
+            }
         }
 
         return (
-            <div
-                className={classNames('dialog-details', { 'dialog-details-third-column': isChatDetailsVisible })}
-                style={style}>
+            <div className='dialog-details' style={style}>
                 <HeaderPlayer />
                 <Header chatId={chatId} />
                 <MessagesList ref={ref => (this.messagesList = ref)} chatId={chatId} messageId={messageId} />

@@ -16,6 +16,7 @@ import HeaderProgress from './ColumnMiddle/HeaderProgress';
 import MenuIcon from '../Assets/Icons/Menu';
 import Placeholder from './ColumnMiddle/Placeholder';
 import SearchIcon from '../Assets/Icons/Search';
+import AppStore from '../Stores/ApplicationStore';
 import './ColumnMiddle/Header.css';
 import './ColumnLeft/Dialogs.css';
 import './ColumnMiddle/DialogDetails.css';
@@ -23,9 +24,33 @@ import '../TelegramApp.css';
 import Dialog from './ColumnLeft/DialogsList';
 
 class StubPage extends React.Component {
+    constructor(props) {
+        super(props);
+
+        const { isSmallWidth } = AppStore;
+
+        this.setState({
+            isSmallWidth
+        });
+    }
+
+    componentDidMount() {
+        AppStore.on('clientUpdatePageWidth', this.onClientUpdatePageWidth);
+    }
+
+    componentWillUnmount() {
+        AppStore.off('clientUpdatePageWidth', this.onClientUpdatePageWidth);
+    }
+
+    onClientUpdatePageWidth = update => {
+        const { isSmallWidth } = update;
+
+        this.setState({ isSmallWidth });
+    };
+
     render() {
         const { title, t } = this.props;
-        const isChatDetailsVisible = false;
+        const { isSmallWidth } = this.state;
 
         const dialogs = Array.from(Array(10)).map((x, index) => <DialogPlaceholder key={index} index={index} />);
 
@@ -33,12 +58,9 @@ class StubPage extends React.Component {
             <>
                 <div
                     className={classNames('page', {
-                        'page-third-column': isChatDetailsVisible
+                        'page-small': isSmallWidth
                     })}>
-                    <div
-                        className={classNames('dialogs', {
-                            'dialogs-third-column': isChatDetailsVisible
-                        })}>
+                    <div className='dialogs'>
                         <div className='header-master'>
                             <IconButton className='header-left-button' aria-label='Menu'>
                                 <MenuIcon />
@@ -52,10 +74,7 @@ class StubPage extends React.Component {
                         </div>
                         {dialogs}
                     </div>
-                    <div
-                        className={classNames('dialog-details', {
-                            'dialog-details-third-column': isChatDetailsVisible
-                        })}>
+                    <div className='dialog-details'>
                         <div className='header-details'>
                             <div className={classNames('header-status', 'grow', 'cursor-default')}>
                                 <span className='header-status-content'>{title}</span>

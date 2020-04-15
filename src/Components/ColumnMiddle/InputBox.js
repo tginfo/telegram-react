@@ -868,6 +868,12 @@ class InputBox extends Component {
         this.sendMessage(content, true, result => FileStore.uploadFile(result.content.document.document.id, result));
     };
 
+    handleSendAudio = (content, file) => {
+        if (!content) return;
+
+        this.sendMessage(content, true, result => FileStore.uploadFile(result.content.audio.audio.id, result));
+    };
+
     async handleSendFiles(files) {
         if (!files) return;
         if (!files.length) return;
@@ -1211,6 +1217,10 @@ class InputBox extends Component {
         this.closeEditMediaDialog(false);
 
         switch (content['@type']) {
+            case 'inputMessageAudio': {
+                this.handleSendAudio(content, file);
+                break;
+            }
             case 'inputMessagePhoto': {
                 this.handleSendPhoto(content, file);
                 break;
