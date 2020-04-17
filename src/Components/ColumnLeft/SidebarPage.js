@@ -19,14 +19,16 @@ class SidebarPage extends React.Component {
     }
 
     handleKeyDown = event => {
-        event.preventDefault();
-        event.stopPropagation();
-        event.target.blur();
-
         switch (event.key) {
             case 'Escape':
                 const { onClose } = this.props;
-                if (onClose) onClose();
+                if (onClose) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.target.blur();
+
+                    onClose();
+                }
                 break;
         }
     };
@@ -56,7 +58,7 @@ class SidebarPage extends React.Component {
 
 SidebarPage.propTypes = {
     open: PropTypes.bool.isRequired,
-    timeout: PropTypes.object,
+    timeout: PropTypes.oneOfType([PropTypes.object, PropTypes.number]),
     onClose: PropTypes.func
 };
 
