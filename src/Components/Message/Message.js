@@ -32,7 +32,12 @@ import {
 } from '../../Utils/Message';
 import { getMedia } from '../../Utils/Media';
 import { canSendMessages, isChannelChat, isPrivateChat } from '../../Utils/Chat';
-import { openUser, openChat, selectMessage, openReply, replyMessage, forwardMessages } from '../../Actions/Client';
+import {
+    openUser,
+    openChat,
+    selectMessage,
+    openReply, replyMessage, forwardMessages
+} from '../../Actions/Client';
 import { withRestoreRef, withSaveRef } from '../../Utils/HOC';
 import MessageStore from '../../Stores/MessageStore';
 import TdLibController from '../../Controllers/TdLibController';
@@ -51,7 +56,7 @@ class Message extends Component {
             shook: false,
 
             contextMenu: false,
-            canCopyLink: false,
+            copyLink: null,
             left: 0,
             top: 0
         };
@@ -315,12 +320,12 @@ class Message extends Component {
 
             const left = event.clientX;
             const top = event.clientY;
-            const canCopyLink =
+            const copyLink =
                 event.target && event.target.tagName === 'A' && event.target.href ? event.target.href : null;
 
             this.setState({
                 contextMenu: true,
-                canCopyLink,
+                copyLink,
                 left,
                 top
             });
@@ -337,7 +342,16 @@ class Message extends Component {
 
     render() {
         const { t, chatId, messageId, showUnreadSeparator, showTail, showTitle, showDate } = this.props;
-        const { emojiMatches, selected, highlighted, shook, canCopyLink, contextMenu, left, top } = this.state;
+        const {
+            emojiMatches,
+            selected,
+            highlighted,
+            shook,
+            copyLink,
+            contextMenu,
+            left,
+            top
+        } = this.state;
 
         // console.log('Message.render', messageId);
 
@@ -470,7 +484,7 @@ class Message extends Component {
                     anchorPosition={{ top, left }}
                     open={contextMenu}
                     onClose={this.handleCloseContextMenu}
-                    canCopyLink={canCopyLink}
+                    copyLink={copyLink}
                 />
             </div>
         );

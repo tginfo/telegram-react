@@ -21,10 +21,11 @@ import DialogContent from '@material-ui/core/DialogContent';
 import DialogActions from '@material-ui/core/DialogActions';
 import ChatTile from '../Tile/ChatTile';
 import NotificationTimer from '../Additional/NotificationTimer';
-import { canClearHistory, canDeleteChat, canUnpinMessage, getChatShortTitle, getSupergroupId, isCreator, isPrivateChat, isSupergroup } from '../../Utils/Chat';
+import { canClearHistory, canDeleteChat, canUnpinMessage, getChatShortTitle, isCreator, isPrivateChat, isSupergroup } from '../../Utils/Chat';
 import { NOTIFICATION_AUTO_HIDE_DURATION_MS } from '../../Constants';
 import ApplicationStore from '../../Stores/ApplicationStore';
 import ChatStore from '../../Stores/ChatStore';
+import UserStore from '../../Stores/UserStore';
 import SupergroupStore from '../../Stores/SupergroupStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './MainMenuButton.css';
@@ -59,14 +60,14 @@ class LeaveChatDialog extends React.Component {
     };
 
     render() {
-        const { onClose, chatId, t, ...other } = this.props;
+        const { onClose, chatId, t, open } = this.props;
 
         return (
             <Dialog
                 transitionDuration={0}
                 onClose={() => onClose(false)}
                 aria-labelledby='delete-dialog-title'
-                {...other}>
+                open={open}>
                 <DialogTitle id='delete-dialog-title'>{getChatShortTitle(chatId, false, t)}</DialogTitle>
                 <DialogContent>
                     <div className='delete-dialog-content'>
@@ -93,14 +94,14 @@ const EnhancedLeaveChatDialog = withTranslation()(LeaveChatDialog);
 
 class ClearHistoryDialog extends React.Component {
     render() {
-        const { onClose, chatId, t, ...other } = this.props;
+        const { onClose, chatId, t, open } = this.props;
 
         return (
             <Dialog
                 transitionDuration={0}
                 onClose={() => onClose(false)}
                 aria-labelledby='delete-dialog-title'
-                {...other}>
+                open={open}>
                 <DialogTitle id='delete-dialog-title'>{getChatShortTitle(chatId, false, t)}</DialogTitle>
                 <DialogContent>
                     <div className='delete-dialog-content'>
@@ -156,12 +157,14 @@ class MainMenuButton extends React.Component {
     };
 
     handleClearHistoryContinue = result => {
+        const { t } = this.props;
+
         this.setState({ openClearHistory: false });
 
         if (!result) return;
 
         const chatId = ApplicationStore.getChatId();
-        const message = 'Messages deleted';
+        const message = t('HistoryClearedUndo');
         const request = {
             '@type': 'deleteChatHistory',
             chat_id: chatId,
@@ -189,7 +192,15 @@ class MainMenuButton extends React.Component {
             : { '@type': 'leaveChat', chat_id: chatId };
 
         if (isSupergroup(chatId) && isCreator(chatId)) {
-            request = { '@type': 'deleteSupergroup', supergroup_id: getSupergroupId(chatId) };
+            request = {
+                '@type': 'setChatMemberStatus',
+                chat_id: chatId,
+                user_id: UserStore.getMyId(),
+                status: {
+                    '@type': 'chatMemberStatusCreator',
+                    is_member: false
+                }
+            };
         }
 
         this.handleScheduledAction(chatId, 'clientUpdateLeaveChat', message, request);
@@ -204,35 +215,44 @@ class MainMenuButton extends React.Component {
             try {
                 await TdLibController.send(request);
             } finally {
-                TdLibController.clientUpdate({ '@type': clientUpdateType, chatId: chatId, inProgress: false });
+                TdLibController.clientUpdate({ '@type': clientUpdateType, chatId, inProgress: false });
             }
         };
         const cancel = () => {
-            TdLibController.clientUpdate({ '@type': clientUpdateType, chatId: chatId, inProgress: false });
+            TdLibController.clientUpdate({ '@type': clientUpdateType, chatId, inProgress: false });
         };
 
-        const { enqueueSnackbar } = this.props;
-        if (!enqueueSnackbar) return;
+        const { enqueueSnackbar, closeSnackbar } = this.props;
 
-        const TRANSITION_DELAY = 150;
-        if (ApplicationStore.addScheduledAction(key, NOTIFICATION_AUTO_HIDE_DURATION_MS, action, cancel)) {
-            TdLibController.clientUpdate({ '@type': clientUpdateType, chatId: chatId, inProgress: true });
-            enqueueSnackbar(message, {
-                autoHideDuration: NOTIFICATION_AUTO_HIDE_DURATION_MS - 2 * TRANSITION_DELAY,
-                action: [
-                    <IconButton key='progress' color='inherit' className='progress-button'>
-                        <NotificationTimer timeout={NOTIFICATION_AUTO_HIDE_DURATION_MS} />
-                    </IconButton>,
-                    <Button
-                        key='undo'
-                        color='primary'
-                        size='small'
-                        onClick={() => ApplicationStore.removeScheduledAction(key)}>
-                        {t('Undo')}
-                    </Button>
-                ]
-            });
-        }
+        TdLibController.clientUpdate({ '@type': clientUpdateType, chatId, inProgress: true });
+        const snackKey = enqueueSnackbar(message, {
+            persist: true,
+            key,
+            preventDuplicate: true,
+            action: [
+                <IconButton
+                    key='progress'
+                    color='inherit'
+                    className='progress-button'>
+                    <NotificationTimer
+                        timeout={NOTIFICATION_AUTO_HIDE_DURATION_MS}
+                        onTimeout={() => {
+                            action();
+                            closeSnackbar(snackKey);
+                        }}/>
+                </IconButton>,
+                <Button
+                    key='undo'
+                    color='primary'
+                    size='small'
+                    onClick={() => {
+                        cancel();
+                        closeSnackbar(snackKey);
+                    }}>
+                    {t('Undo')}
+                </Button>
+            ]
+        });
     };
 
     getLeaveChatTitle = (chatId, t) => {

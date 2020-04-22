@@ -14,6 +14,7 @@ import ArrowBackIcon from '../../Assets/Icons/Back';
 import CloseIcon from '../../Assets/Icons/Close';
 import NextIcon from '../../Assets/Icons/Back';
 import NewChatPhoto from './NewChatPhoto';
+import { openChat } from '../../Actions/Client';
 import TdLibController from '../../Controllers/TdLibController';
 import './NewGroup.css';
 
@@ -49,6 +50,8 @@ class NewChannel extends React.Component {
             });
         }
 
+        this.handleClose();
+
         const description = this.descriptionRef.current.value;
 
         const chat = await TdLibController.send({
@@ -67,7 +70,7 @@ class NewChannel extends React.Component {
             });
         }
 
-        this.handleClose();
+        openChat(chat.id);
     };
 
     handleChoosePhoto = blob => {
@@ -88,27 +91,29 @@ class NewChannel extends React.Component {
                         <span className='header-status-content'>{t('NewChannel')}</span>
                     </div>
                 </div>
-                <div className='sidebar-page-content new-chat-content'>
-                    <NewChatPhoto onChoose={this.handleChoosePhoto}/>
-                    <div className='new-chat-title'>
-                        <TextField
-                            inputRef={this.titleRef}
-                            error={error}
-                            className='new-chat-input'
-                            variant='outlined'
-                            fullWidth
-                            label={t('EnterChannelName')}
-                            defaultValue={''}
-                        />
-                        <TextField
-                            inputRef={this.descriptionRef}
-                            className='new-chat-input'
-                            variant='outlined'
-                            fullWidth
-                            label={t('DescriptionOptionalPlaceholder')}
-                            defaultValue={''}
-                        />
-                        <div className='edit-profile-hint'>{t('DescriptionInfo')}</div>
+                <div className='sidebar-page-content'>
+                    <div className='new-chat-content'>
+                        <NewChatPhoto onChoose={this.handleChoosePhoto}/>
+                        <div className='new-chat-title'>
+                            <TextField
+                                inputRef={this.titleRef}
+                                error={error}
+                                className='new-chat-input'
+                                variant='outlined'
+                                fullWidth
+                                label={t('EnterChannelName')}
+                                defaultValue={''}
+                            />
+                            <TextField
+                                inputRef={this.descriptionRef}
+                                className='new-chat-input'
+                                variant='outlined'
+                                fullWidth
+                                label={t('DescriptionOptionalPlaceholder')}
+                                defaultValue={''}
+                            />
+                            <div className='edit-profile-hint'>{t('DescriptionInfo')}</div>
+                        </div>
                     </div>
                 </div>
 

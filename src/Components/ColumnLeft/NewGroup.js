@@ -18,6 +18,7 @@ import SectionHeader from './SectionHeader';
 import User from '../Tile/User';
 import NewChatPhoto from './NewChatPhoto';
 import { loadUsersContent } from '../../Utils/File';
+import { openChat } from '../../Actions/Client';
 import FileStore from '../../Stores/FileStore';
 import UserStore from '../../Stores/UserStore';
 import TdLibController from '../../Controllers/TdLibController';
@@ -84,6 +85,8 @@ class NewGroup extends React.Component {
             });
         }
 
+        this.handleClose();
+
         const chat = await TdLibController.send({
             '@type': 'createNewSupergroupChat',
             title,
@@ -100,7 +103,7 @@ class NewGroup extends React.Component {
             });
         }
 
-        this.handleClose();
+        openChat(chat.id);
     };
 
     handleChoosePhoto = blob => {
@@ -126,23 +129,25 @@ class NewGroup extends React.Component {
                         <span className='header-status-content'>{t('NewGroup')}</span>
                     </div>
                 </div>
-                <div className='sidebar-page-content new-chat-content'>
-                    <NewChatPhoto onChoose={this.handleChoosePhoto}/>
-                    <div className='new-chat-title'>
-                        <TextField
-                            inputRef={this.titleRef}
-                            error={error}
-                            className='new-chat-input'
-                            variant='outlined'
-                            fullWidth
-                            label={t('GroupName')}
-                            defaultValue={''}
-                        />
-                    </div>
-                    {/*<div className='sidebar-page-section'>*/}
+                <div className='sidebar-page-content'>
+                    <div className='new-chat-content'>
+                        <NewChatPhoto onChoose={this.handleChoosePhoto}/>
+                        <div className='new-chat-title'>
+                            <TextField
+                                inputRef={this.titleRef}
+                                error={error}
+                                className='new-chat-input'
+                                variant='outlined'
+                                fullWidth
+                                label={t('GroupName')}
+                                defaultValue={''}
+                            />
+                        </div>
+                        {/*<div className='sidebar-page-section'>*/}
                         <SectionHeader>{itemsCaption}</SectionHeader>
                         {items}
-                    {/*</div>*/}
+                        {/*</div>*/}
+                    </div>
                 </div>
 
                 <div className='new-chat-bottom-button' onClick={this.handleDone}>
