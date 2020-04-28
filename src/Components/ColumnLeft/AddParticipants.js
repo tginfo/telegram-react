@@ -7,12 +7,14 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
+import { withTranslation } from 'react-i18next';
 import Checkbox from '@material-ui/core/Checkbox';
 import IconButton from '@material-ui/core/IconButton';
 import ListItem from '@material-ui/core/ListItem';
 import ArrowBackIcon from '../../Assets/Icons/Back';
 import CloseIcon from '../../Assets/Icons/Close';
 import User from '../Tile/User';
+import UserChip from '../Tile/UserChip';
 import SearchInput from './Search/SearchInput';
 import VirtualizedList from '../Additional/VirtualizedList';
 import { loadUsersContent } from '../../Utils/File';
@@ -61,11 +63,18 @@ class AddParticipants extends React.Component {
         this.searchInputRef = React.createRef();
         this.listRef = React.createRef();
         this.searchListRef = React.createRef();
+        this.wrapPanelRef = React.createRef();
+        this.lastItemRef = React.createRef();
+        this.itemsRef = new Map();
 
         this.state = {
             items: null,
             searchItems: null,
-            selectedItems: new Map()
+            selectedItems: {
+                array: [],
+                map: new Map()
+            },
+            focusedItem: null
         };
 
         this.handleDebounceScroll = debounce(this.handleDebounceScroll, 100, false);
@@ -73,7 +82,7 @@ class AddParticipants extends React.Component {
     }
 
     getUserIds() {
-        return this.state.selectedItems;
+        return this.state.selectedItems.array;
     }
 
     componentDidMount() {
@@ -137,28 +146,134 @@ class AddParticipants extends React.Component {
     }
 
     handleOpenUser = userId => {
-        const { selectedItems } = this.state;
+        const { selectedItems, focusedItem } = this.state;
+        const { map, array } = selectedItems;
 
-        if (selectedItems.has(userId)) {
-            const newSelectedItems = new Map(selectedItems);
-            newSelectedItems.delete(userId);
-
-            this.setState({
-                selectedItems: newSelectedItems
-            });
+        const newMap = new Map(map);
+        let newArray;
+        let newFocusedItem = null;
+        let isDeleting = false;
+        if (map.has(userId)) {
+            newMap.delete(userId);
+            newArray = array.filter(x => x !== userId);
+            newFocusedItem = focusedItem === userId ? null : focusedItem;
+            isDeleting = true;
         } else {
-            const newSelectedItems = new Map(selectedItems);
-            newSelectedItems.set(userId, userId);
-
-            this.setState({
-                selectedItems: newSelectedItems
-            });
+            newMap.set(userId, userId);
+            newArray = array.concat([userId]);
+            newFocusedItem = null;
         }
+
+        const input = this.searchInputRef.current;
+        input.focus();
+        if (!isDeleting) {
+            input.innerText = '';
+            this.handleSearch('');
+        }
+
+        const wrapPanel = this.wrapPanelRef.current;
+
+        const prevHeight = wrapPanel.scrollHeight;
+        const prevOffsetHeight = wrapPanel.offsetHeight;
+
+        const prevMap = new Map();
+        for (let key of this.itemsRef.keys()) {
+            const el = this.itemsRef.get(key);
+            if (el) {
+                const offset = el.getOffset();
+                prevMap.set(key, offset);
+            }
+        }
+
+        const prevCSSText = wrapPanel.style.cssText;
+        if (isDeleting) {
+            wrapPanel.style.cssText = null;
+        }
+
+        this.setState({
+            focusedItem: newFocusedItem,
+            selectedItems: {
+                array: newArray,
+                map: newMap
+            }
+        }, () => {
+            const currentHeight = wrapPanel.scrollHeight;
+            const currentOffsetHeight = wrapPanel.offsetHeight;
+
+            const expanded = currentHeight > prevHeight;
+            const collapsed = currentHeight < prevHeight;
+            // console.log('[wrap]', prevHeight, prevOffsetHeight, currentHeight, currentOffsetHeight, expanded, collapsed);
+
+            const maxHeight = 123;
+            if (expanded) {
+                if (prevHeight < maxHeight) {
+                    // console.log('[wrap] animate expand', Math.min(prevHeight, maxHeight), Math.min(currentHeight, maxHeight));
+                    wrapPanel.style.cssText = `max-height: ${Math.min(prevHeight, maxHeight)}px;`;
+                    // console.log('[wrap] animate expand', wrapPanel.style.cssText);
+                    requestAnimationFrame(() => {
+                        wrapPanel.style.cssText = `max-height: ${Math.min(currentHeight, maxHeight)}px;`;
+                        setTimeout(() => {
+                            this.lastItemRef.current.scrollIntoView({ behavior: 'auto' });
+                        }, 250);
+                        // console.log('[wrap] animate expand', wrapPanel.style.cssText);
+                    });
+                } else {
+                    // console.log('[wrap] expand', prevHeight, maxHeight);
+                    wrapPanel.style.cssText = `max-height: ${maxHeight}px;`;
+                    //wrapPanel.scrollTop = wrapPanel.scrollHeight;
+                    this.lastItemRef.current.scrollIntoView({ behavior: 'smooth' });
+                    // console.log('[wrap] expand', wrapPanel.style.cssText);
+                }
+            } else if (collapsed) {
+                if (currentHeight < maxHeight) {
+                    // console.log('[wrap] animate collapse', Math.min(prevHeight, maxHeight), Math.min(currentHeight, maxHeight));
+                    wrapPanel.style.cssText = `min-height: ${Math.min(prevOffsetHeight, maxHeight)}px;`;
+                    // console.log('[wrap] animate collapse', wrapPanel.style.cssText);
+                    requestAnimationFrame(() => {
+                        wrapPanel.style.cssText = `min-height: ${Math.min(currentHeight, maxHeight)}px;`;
+                        // console.log('[wrap] animate collapse', wrapPanel.style.cssText);
+                    });
+                } else {
+                    // console.log('[wrap] collapse', prevHeight, maxHeight);
+                    wrapPanel.style.cssText = `max-height: ${maxHeight}px;`;
+                    // console.log('[wrap] collapse', wrapPanel.style.cssText);
+                }
+            } else {
+                if (isDeleting) {
+                    wrapPanel.style.cssText = prevCSSText;
+                } else {
+                    this.lastItemRef.current.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+
+            for (let key of this.itemsRef.keys()) {
+                const el = this.itemsRef.get(key);
+                if (el) {
+                    const currentOffset = el.getOffset();
+                    const prevOffset = prevMap.has(key) ? prevMap.get(key) : null;
+                    if (prevOffset) {
+                        const text = `transform: translate(${prevOffset.left - currentOffset.left}px, ${prevOffset.top - currentOffset.top}px)`;
+                        el.setStyleCSSText(text);
+                    }
+                }
+            }
+
+            requestAnimationFrame(() => {
+                for (let key of this.itemsRef.keys()) {
+                    const el = this.itemsRef.get(key);
+                    if (el) {
+                        const transition = `transition: transform 0.25s ease`;
+
+                        el.setStyleCSSText(transition);
+                    }
+                }
+            });
+        });
     };
 
-    renderItem = ({ index, style }, items, selectedItems) => {
+    renderItem = ({ index, style }, items, selectedItemsMap) => {
         const userId = items.user_ids[index];
-        const isSelected = selectedItems.has(userId);
+        const isSelected = selectedItemsMap.has(userId);
 
         return <UserListItem key={userId} userId={userId} selected={isSelected} onClick={() => this.handleOpenUser(userId)} style={style} />;
     };
@@ -167,7 +282,8 @@ class AddParticipants extends React.Component {
         const query = text.trim();
         if (!query) {
             this.setState({
-                searchItems: null
+                searchItems: null,
+                focusedItem: null
             });
             return;
         }
@@ -184,7 +300,7 @@ class AddParticipants extends React.Component {
         const store = FileStore.getStore();
         loadUsersContent(store, searchItems.user_ids.slice(0, 20));
 
-        this.setState({ searchItems });
+        this.setState({ searchItems, focusedItem: null });
     };
 
     handleClose = () => {
@@ -194,9 +310,49 @@ class AddParticipants extends React.Component {
         });
     };
 
+    handleSearchClose = event => {
+        const { selectedItems, focusedItem } = this.state;
+        if (!selectedItems) return;
+
+        const { map } = selectedItems;
+        if (!map.has(focusedItem)) return;
+
+        event.stopPropagation();
+        event.nativeEvent.stopImmediatePropagation();
+
+        this.setState({
+            focusedItem: null
+        })
+    };
+
+    handleBackspace = () => {
+        const { selectedItems, focusedItem } = this.state;
+        if (!selectedItems) return;
+
+        const { array, map } = selectedItems;
+        if (!array) return;
+        if (!array.length) return;
+
+        if (map.has(focusedItem)) {
+            this.handleOpenUser(focusedItem);
+            return;
+        }
+
+        const lastItem = array[array.length - 1];
+        if (!lastItem) return;
+
+        this.setState({
+            focusedItem: lastItem
+        });
+    };
+
     render() {
-        const { popup } = this.props;
-        const { items, searchItems, selectedItems } = this.state;
+        const { popup, t } = this.props;
+        const { items, searchItems, selectedItems, focusedItem } = this.state;
+
+        const style = popup ? { minHeight: 800 } : null;
+
+        this.itemsRef.clear();
 
         return (
             <>
@@ -204,9 +360,17 @@ class AddParticipants extends React.Component {
                     <IconButton className='header-left-button' onClick={this.handleClose}>
                         { popup ? <CloseIcon/> : <ArrowBackIcon /> }
                     </IconButton>
-                    <SearchInput inputRef={this.searchInputRef} onChange={this.handleSearch} />
+                    <div className='header-status grow cursor-pointer'>
+                        <span className='header-status-content'>{t('GroupAddMembers')}</span>
+                    </div>
                 </div>
-                <div className='contacts-content'>
+                <div ref={this.wrapPanelRef} className='animated-wrap-panel'>
+                    {selectedItems.array.map(x => <UserChip selected={focusedItem === x} ref={el => { this.itemsRef.set(x, el); }} key={x} userId={x} onClick={() => this.handleOpenUser(x)}/>)}
+                    <div ref={this.lastItemRef} style={{ height: 33, margin: '4px 0'}}/>
+                    <SearchInput inputRef={this.searchInputRef} hint={t('SendMessageTo')} onClose={this.handleSearchClose} onChange={this.handleSearch} onBackspace={this.handleBackspace} />
+                </div>
+                <div className='contacts-border'/>
+                <div className='contacts-content' style={style}>
                     {items && (
                         <VirtualizedList
                             ref={this.listRef}
@@ -214,7 +378,7 @@ class AddParticipants extends React.Component {
                             source={items.user_ids}
                             rowHeight={72}
                             overScanCount={20}
-                            renderItem={x => this.renderItem(x, items, selectedItems)}
+                            renderItem={x => this.renderItem(x, items, selectedItems.map)}
                             onScroll={this.handleScroll}
                         />
                     )}
@@ -225,7 +389,7 @@ class AddParticipants extends React.Component {
                             source={searchItems.user_ids}
                             rowHeight={72}
                             overScanCount={20}
-                            renderItem={x => this.renderItem(x, searchItems, selectedItems)}
+                            renderItem={x => this.renderItem(x, searchItems, selectedItems.map)}
                             onScroll={this.handleScroll}
                         />
                     )}
@@ -240,4 +404,4 @@ AddParticipants.propTypes = {
     onClose: PropTypes.func
 };
 
-export default AddParticipants;
+export default withTranslation()(AddParticipants);
