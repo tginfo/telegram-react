@@ -672,7 +672,7 @@ class HeaderPlayer extends React.Component {
         const hasPrev = this.hasPrev(message, playlist);
         const hasNext = this.hasNext(message, playlist);
 
-        const source = src ? <source src={src} type={mimeType} /> : null;
+        const source = src ? <source src={src} type={mimeType}/> : null;
 
         return (
             <>
@@ -687,7 +687,8 @@ class HeaderPlayer extends React.Component {
                     onPlay={this.handleVideoPlay}
                     onPause={this.handleVideoPause}
                     onTimeUpdate={this.handleTimeUpdate}
-                    onEnded={this.handleVideoEnded}>
+                    onEnded={this.handleVideoEnded}
+                >
                     {source}
                 </video>
                 {message && (

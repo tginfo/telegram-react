@@ -61,7 +61,7 @@ class Wallpaper extends React.Component {
 
     render() {
         const { wallpaper, isSelected } = this.props;
-        const { loaded } = this.state;
+        const { loaded  } = this.state;
 
         const { document } = wallpaper;
         const { minithumbnail, thumbnail } = document;
@@ -73,27 +73,17 @@ class Wallpaper extends React.Component {
 
         return (
             <div className='shared-photo' onClick={this.handleClick}>
-                <div
-                    className='shared-photo-content'
-                    style={{
-                        backgroundImage: `url(${thumbSrc || miniSrc})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: '50%'
-                    }}>
+                <div className='shared-photo-content' style={{ backgroundImage: `url(${thumbSrc || miniSrc})`, backgroundSize: 'cover', backgroundPosition: '50%' }}>
                     {src !== thumbSrc && (
                         <div className='shared-photo-main-content' style={{ backgroundImage: `url(${src})` }} />
                     )}
                 </div>
-                {isSelected && (
-                    <>
-                        <div className='wallpaper-selected' />
-                        <div className='wallpaper-selected-inner' />
-                    </>
-                )}
-                {document && document.document && <FileProgress file={document.document} cancelButton={false} />}
+                { isSelected && <><div className='wallpaper-selected'/><div className='wallpaper-selected-inner'/></> }
+                { document && document.document && <FileProgress file={document.document} cancelButton={false}/> }
             </div>
         );
     }
+
 }
 
 Wallpaper.propTypes = {

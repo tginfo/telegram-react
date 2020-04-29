@@ -325,7 +325,7 @@ class VideoNote extends React.Component {
         let progress = 0;
         if (videoDuration && currentTime) {
             const progressTime = currentTime + 0.25;
-            progress = clamp((progressTime / videoDuration) * 100, 0, 100);
+            progress = clamp(progressTime / videoDuration * 100, 0, 100);
         }
 
         return (
@@ -345,8 +345,9 @@ class VideoNote extends React.Component {
                             playsInline
                             width={style.width}
                             height={style.height}
-                            onCanPlay={this.handleCanPlay}>
-                            <source ref={this.sourceRef} src={null} type='video/mp4' />
+                            onCanPlay={this.handleCanPlay}
+                        >
+                            <source ref={this.sourceRef} src={null} type='video/mp4'/>
                         </video>
                         <div className='video-note-player'>
                             <div className='video-note-progress'>

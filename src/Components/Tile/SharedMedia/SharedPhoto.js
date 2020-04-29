@@ -93,14 +93,8 @@ class SharedPhoto extends React.Component {
 
         return (
             <>
-                <div
-                    className='shared-photo'
-                    style={style}
-                    onClick={openMedia}
-                    onContextMenu={this.handleOpenContextMenu}>
-                    <div
-                        className='shared-photo-content'
-                        style={{ backgroundImage: `url(${thumbSrc || miniSrc})`, backgroundSize: 'cover' }}>
+                <div className='shared-photo' style={style} onClick={openMedia} onContextMenu={this.handleOpenContextMenu}>
+                    <div className='shared-photo-content' style={{ backgroundImage: `url(${thumbSrc || miniSrc})`, backgroundSize: 'cover' }}>
                         {src !== thumbSrc && (
                             <div className='shared-photo-main-content' style={{ backgroundImage: `url(${src})` }} />
                         )}

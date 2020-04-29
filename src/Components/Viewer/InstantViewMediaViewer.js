@@ -21,12 +21,7 @@ import MediaViewerFooterText from './MediaViewerFooterText';
 import MediaViewerFooterButton from './MediaViewerFooterButton';
 import MediaViewerDownloadButton from './MediaViewerDownloadButton';
 import { getBlockCaption, getBlockMedia, getBlockUrl, getValidMediaBlocks } from '../../Utils/InstantView';
-import {
-    cancelPreloadIVMediaViewerContent,
-    getViewerFile,
-    preloadIVMediaViewerContent,
-    saveMedia
-} from '../../Utils/File';
+import { cancelPreloadIVMediaViewerContent, getViewerFile, preloadIVMediaViewerContent, saveMedia } from '../../Utils/File';
 import { getInputMediaContent } from '../../Utils/Media';
 import { forward, setInstantViewViewerContent } from '../../Actions/Client';
 import './InstantViewMediaViewer.css';
@@ -127,11 +122,13 @@ class InstantViewMediaViewer extends React.Component {
         if (index < 0) return false;
         if (index >= blocks.length) return false;
 
-        this.setState({
-            index,
-            hasPreviousMedia: this.hasPreviousMedia(index, blocks),
-            hasNextMedia: this.hasNextMedia(index, blocks)
-        });
+        this.setState(
+            {
+                index,
+                hasPreviousMedia: this.hasPreviousMedia(index, blocks),
+                hasNextMedia: this.hasNextMedia(index, blocks)
+            }
+        );
 
         preloadIVMediaViewerContent(index, blocks);
         return true;

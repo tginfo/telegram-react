@@ -102,6 +102,7 @@ BlockedUser.propTypes = {
 };
 
 class BlockedUsers extends React.Component {
+
     componentDidMount() {
         this.loadContent();
     }
@@ -116,7 +117,7 @@ class BlockedUsers extends React.Component {
 
     handleUnblock = async userId => {
         await TdLibController.send({
-            '@type': 'unblockUser',
+           '@type': 'unblockUser',
             user_id: userId
         });
     };
@@ -136,12 +137,12 @@ class BlockedUsers extends React.Component {
                 </div>
                 <div className='sidebar-page-content'>
                     <div className='sidebar-page-section'>
-                        {users.user_ids.length > 0 ? (
+                        { users.user_ids.length > 0 ? (
                             <>
                                 <SectionHeader multiline>{t('BlockedUsersInfo')}</SectionHeader>
-                                {users.user_ids.map(x => (
-                                    <BlockedUser key={x} userId={x} onClick={openUser} onUnblock={this.handleUnblock} />
-                                ))}
+                                {
+                                    users.user_ids.map(x => <BlockedUser key={x} userId={x} onClick={openUser} onUnblock={this.handleUnblock}/>)
+                                }
                             </>
                         ) : (
                             <SectionHeader>{t('NoBlocked')}</SectionHeader>

@@ -104,6 +104,7 @@ class SharedVoiceNote extends React.Component {
                     onClose={this.handleCloseContextMenu}
                 />
             </>
+
         );
     }
 }

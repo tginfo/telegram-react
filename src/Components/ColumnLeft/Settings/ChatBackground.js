@@ -74,14 +74,7 @@ class ChatBackground extends React.Component {
                     </div>
                 </div>
                 <div className='sidebar-page-content shared-media-list shared-photos-list'>
-                    {wallpapers.map(x => (
-                        <Wallpaper
-                            key={x.id}
-                            wallpaper={x}
-                            isSelected={x.id === selectedId}
-                            onClick={this.handleClick}
-                        />
-                    ))}
+                    { wallpapers.map(x => (<Wallpaper key={x.id} wallpaper={x} isSelected={x.id === selectedId} onClick={this.handleClick}/>)) }
                 </div>
             </>
         );

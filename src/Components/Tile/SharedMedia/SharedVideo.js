@@ -82,11 +82,7 @@ class SharedVideo extends React.Component {
 
         return (
             <>
-                <div
-                    className='shared-photo'
-                    style={style}
-                    onClick={openMedia}
-                    onContextMenu={this.handleOpenContextMenu}>
+                <div className='shared-photo' style={style} onClick={openMedia} onContextMenu={this.handleOpenContextMenu}>
                     <div className='shared-video-wrapper'>
                         <div
                             className={classNames('shared-video-content', {

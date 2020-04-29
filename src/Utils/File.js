@@ -369,7 +369,7 @@ function loadAnimationContent(store, animation, message, useFileSize = true) {
     );
 }
 
-function cancelLoadAnimationThumbnailContent(animation) {
+function cancelLoadAnimationThumbnailContent(animation){
     if (!animation) return;
 
     const { thumbnail: photoSize } = animation;

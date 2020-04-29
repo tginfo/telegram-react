@@ -31,7 +31,9 @@ class EditMediaDialog extends React.Component {
         this.captionRef = React.createRef();
         this.editMediaRef = React.createRef();
 
-        this.state = {};
+        this.state = {
+
+        };
     }
 
     static getDerivedStateFromProps(props, state) {
@@ -44,7 +46,7 @@ class EditMediaDialog extends React.Component {
                 let sendAsPhoto = false;
                 if (editMessage && editMessage.content['@type'] === 'messagePhoto') {
                     sendAsPhoto = true;
-                } else if (newItem && newItem.media && newItem.media['@type'] === 'messagePhoto') {
+                } else if (newItem && newItem.media && newItem.media['@type'] === 'messagePhoto'){
                     sendAsPhoto = true;
                 }
 
@@ -54,7 +56,7 @@ class EditMediaDialog extends React.Component {
                     editMessage,
                     editMedia: null,
                     editFile: null
-                };
+                }
             } else {
                 return {
                     prevOpen: false,
@@ -62,7 +64,7 @@ class EditMediaDialog extends React.Component {
                     editMessage: null,
                     editMedia: null,
                     editFile: null
-                };
+                }
             }
         }
 
@@ -196,18 +198,18 @@ class EditMediaDialog extends React.Component {
 
                 content = sendAsPhoto
                     ? {
-                          '@type': 'inputMessagePhoto',
-                          photo: { '@type': 'inputFileBlob', name: file.name, data: file },
-                          width,
-                          height,
-                          caption
-                      }
+                        '@type': 'inputMessagePhoto',
+                        photo: { '@type': 'inputFileBlob', name: file.name, data: file },
+                        width,
+                        height,
+                        caption
+                    }
                     : {
-                          '@type': 'inputMessageDocument',
-                          document: { '@type': 'inputFileBlob', name: file.name, data: file },
-                          thumbnail: null,
-                          caption
-                      };
+                        '@type': 'inputMessageDocument',
+                        document: { '@type': 'inputFileBlob', name: file.name, data: file },
+                        thumbnail: null,
+                        caption
+                    };
             } else if (document) {
                 content = {
                     '@type': 'inputMessageDocument',
@@ -535,13 +537,16 @@ class EditMediaDialog extends React.Component {
             isPhoto = true;
         } else if (editMedia && editMedia['@type'] === 'messagePhoto') {
             isPhoto = true;
-        } else if (editMessage && editMessage.content['@type'] === 'messagePhoto') {
+        } else if (editMessage && editMessage.content['@type'] === 'messagePhoto'){
             isPhoto = true;
         }
 
         let media = null;
         if (isEditing) {
-            media = editMedia ? getMedia({ content: editMedia }) : getMedia(message, null);
+            media =
+            editMedia
+                ? getMedia({ content: editMedia })
+                : getMedia(message, null);
         } else if (newItem) {
             media = getMedia({ content: newItem.media });
         }
@@ -556,7 +561,7 @@ class EditMediaDialog extends React.Component {
                 onEnter={this.handleEnter}>
                 <div className='edit-media-dialog-content'>
                     <div style={{ margin: 24 }}>{media}</div>
-                    {isEditing && (
+                    { isEditing && (
                         <>
                             <IconButton
                                 disableRipple={true}
@@ -575,21 +580,10 @@ class EditMediaDialog extends React.Component {
                             />
                         </>
                     )}
-                    {!isEditing && isPhoto && (
-                        <RadioGroup
-                            value={sendAsPhoto}
-                            onChange={this.handleSendAsPhoto}
-                            style={{ margin: '0 24px 24px' }}>
-                            <FormControlLabel
-                                value={true}
-                                control={<Radio color='primary' />}
-                                label={t('SendAsPhoto')}
-                            />
-                            <FormControlLabel
-                                value={false}
-                                control={<Radio color='primary' />}
-                                label={t('SendAsFile')}
-                            />
+                    { !isEditing && isPhoto && (
+                        <RadioGroup value={sendAsPhoto} onChange={this.handleSendAsPhoto} style={{ margin: '0 24px 24px' }}>
+                            <FormControlLabel value={true} control={<Radio color='primary'/>} label={t('SendAsPhoto')} />
+                            <FormControlLabel value={false} control={<Radio color='primary'/>} label={t('SendAsFile')} />
                         </RadioGroup>
                     )}
                 </div>

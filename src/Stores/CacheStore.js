@@ -134,11 +134,9 @@ class CacheStore extends EventEmitter {
         const { meChat, chats, archiveChats, users, basicGroups, supergroups, files, options } = cache;
         // console.log('[cache] parseCache', cache);
 
-        (files || [])
-            .filter(x => Boolean(x))
-            .forEach(({ id, url }) => {
-                FileStore.setDataUrl(id, url);
-            });
+        (files || []).filter(x => Boolean(x)).forEach(({ id, url }) => {
+            FileStore.setDataUrl(id, url);
+        });
 
         (users || []).forEach(x => {
             UserStore.set(x);
@@ -298,11 +296,9 @@ class CacheStore extends EventEmitter {
         if (this.cache) {
             const { files } = this.cache;
 
-            files
-                .filter(x => Boolean(x))
-                .forEach(({ id, url }) => {
-                    FileStore.deleteDataUrl(id);
-                });
+            files.filter(x => Boolean(x)).forEach(({ id, url }) => {
+                FileStore.deleteDataUrl(id);
+            });
         }
     }
 }

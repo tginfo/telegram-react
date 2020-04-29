@@ -224,7 +224,7 @@ class MediaViewerContent extends React.Component {
         }
 
         let content = null;
-        const source = src ? <source src={src} type={mimeType} /> : null;
+        const source = src ? <source src={src} type={mimeType}/> : null;
         if (isVideo) {
             content = (
                 <div className='media-viewer-content-wrapper'>
@@ -266,7 +266,8 @@ class MediaViewerContent extends React.Component {
                                     volume: player.volume
                                 });
                             }
-                        }}>
+                        }}
+                    >
                         {source}
                     </video>
                     {!isPlaying &&
@@ -304,7 +305,8 @@ class MediaViewerContent extends React.Component {
                         height={videoHeight}
                         onPlay={() => {
                             this.setState({ isPlaying: true });
-                        }}>
+                        }}
+                    >
                         {source}
                     </video>
                     {!isPlaying &&

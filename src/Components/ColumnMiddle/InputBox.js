@@ -59,16 +59,7 @@ class InputBox extends Component {
 
     shouldComponentUpdate(nextProps, nextState) {
         const { t } = this.props;
-        const {
-            chatId,
-            newDraft,
-            files,
-            replyToMessageId,
-            editMessageId,
-            openEditMedia,
-            openEditUrl,
-            sendFile
-        } = this.state;
+        const { chatId, newDraft, files, replyToMessageId, editMessageId, openEditMedia, openEditUrl, sendFile } = this.state;
 
         if (nextProps.t !== t) {
             return true;
@@ -528,21 +519,23 @@ class InputBox extends Component {
             this.handleInput();
         }
 
-        const media = sendAsFile ? await getMediaPhotoFromFile(file) : await getMediaDocumentFromFile(file);
+        const media = sendAsFile
+            ? await getMediaPhotoFromFile(file)
+            : await getMediaDocumentFromFile(file);
 
         return {
             file,
             media,
             caption
-        };
-    }
+        }
+    };
 
     handleAttachPhotoComplete = async () => {
         const { files } = this.attachPhotoRef.current;
         if (files.length === 0) return;
 
         if (files.length === 1) {
-            const [newFile, ...rest] = Array.from(files);
+            const [ newFile, ...rest ] = Array.from(files);
             if (!newFile) return;
 
             const newItem = await this.getNewItem(newFile, true);
@@ -580,7 +573,7 @@ class InputBox extends Component {
         if (files.length === 0) return;
 
         if (files.length === 1) {
-            const [newFile, ...rest] = Array.from(files);
+            const [ newFile, ...rest ] = Array.from(files);
             if (!newFile) return;
 
             const newItem = await this.getNewItem(newFile, false);

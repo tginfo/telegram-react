@@ -27,10 +27,8 @@ import {
     getChatShortTitle,
     getChatSubtitle,
     getChatTitle,
-    isAccentChatSubtitle,
-    isChannelChat,
-    isPrivateChat,
-    isSupergroup
+    isAccentChatSubtitle, isChannelChat,
+    isPrivateChat, isSupergroup
 } from '../../Utils/Chat';
 import { clearSelection, openChat, searchChat } from '../../Actions/Client';
 import AppStore from '../../Stores/ApplicationStore';
@@ -318,33 +316,32 @@ class Header extends Component {
                                 ? 'Do you want to delete this message?'
                                 : `Do you want to delete ${count} messages?`}
                         </DialogContentText>
-                        {isSupergroup(chatId) ? (
+                        { isSupergroup(chatId) ? (
                             <DialogContentText>
-                                {!isChannelChat(chatId) &&
-                                    (count === 1
-                                        ? 'This will delete it for everyone in this chat'
-                                        : 'This will delete them for everyone in this chat')}
+                                { !isChannelChat(chatId) && (count === 1
+                                    ? 'This will delete it for everyone in this chat'
+                                    : 'This will delete them for everyone in this chat')
+                                }
                             </DialogContentText>
                         ) : (
                             <>
-                                {canBeDeletedForAllUsers && (
+                                {
+                                    canBeDeletedForAllUsers && (
                                     <FormControlLabel
-                                        control={
-                                            <Checkbox
-                                                checked={revoke}
-                                                onChange={this.handleRevokeChange}
-                                                color='primary'
-                                            />
-                                        }
-                                        label={
-                                            isPrivateChat(chatId)
-                                                ? `Delete for ${getChatShortTitle(chatId, false, t)}`
-                                                : 'Delete for all'
-                                        }
+                                    control={
+                                        <Checkbox checked={revoke} onChange={this.handleRevokeChange} color='primary' />
+                                    }
+                                    label={
+                                        isPrivateChat(chatId)
+                                            ? `Delete for ${getChatShortTitle(chatId, false, t)}`
+                                            : 'Delete for all'
+                                    }
                                     />
                                 )}
                             </>
                         )}
+
+
                     </DialogContent>
                     <DialogActions>
                         <Button onClick={this.handleCloseDelete} color='primary'>

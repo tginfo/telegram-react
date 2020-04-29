@@ -177,7 +177,7 @@ class Animation extends React.Component {
 
         const isBlurred = thumbnailSrc ? isBlurredThumbnail(thumbnail) : Boolean(miniSrc);
         const isGif = isGifMimeType(mime_type);
-        const source = src ? <source src={src} type={mime_type} /> : null;
+        const source = src ? <source src={src} type={mime_type}/> : null;
 
         return (
             <div
@@ -203,7 +203,8 @@ class Animation extends React.Component {
                             loop
                             playsInline
                             width={animationStyle.width}
-                            height={animationStyle.height}>
+                            height={animationStyle.height}
+                        >
                             {source}
                         </video>
                     )

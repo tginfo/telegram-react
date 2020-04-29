@@ -26,9 +26,10 @@ import ChatStore from '../../../Stores/ChatStore';
 import './Main.css';
 
 class Main extends React.Component {
+
     handleOpenViewer = () => {
         const { chatId } = this.props;
-
+        
         const chat = ChatStore.get(chatId);
         if (!chat) return;
         if (!chat.photo) return;

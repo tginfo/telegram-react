@@ -20,14 +20,7 @@ import { getAudioTitle } from './Media';
 import { getDecodedUrl } from './Url';
 import { getServiceMessageContent } from './ServiceMessage';
 import { getUserFullName } from './User';
-import {
-    LOCATION_HEIGHT,
-    LOCATION_SCALE,
-    LOCATION_WIDTH,
-    LOCATION_ZOOM,
-    PHOTO_DISPLAY_SIZE,
-    PHOTO_SIZE
-} from '../Constants';
+import { LOCATION_HEIGHT, LOCATION_SCALE, LOCATION_WIDTH, LOCATION_ZOOM, PHOTO_DISPLAY_SIZE, PHOTO_SIZE } from '../Constants';
 import AppStore from '../Stores/ApplicationStore';
 import ChatStore from '../Stores/ChatStore';
 import FileStore from '../Stores/FileStore';

@@ -74,6 +74,7 @@ class ContextMenu extends React.Component {
             </Popover>
         );
     }
+
 }
 
 ContextMenu.propTypes = {
