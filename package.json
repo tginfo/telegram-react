@@ -1,7 +1,7 @@
 {
   "homepage": "https://web.tginfo.me",
   "name": "telegram_react",
-  "version": "0.0.637",
+  "version": "0.0.639",
   "private": true,
   "dependencies": {
     "@material-ui/core": "^4.9.7",
@@ -13,6 +13,7 @@
     "i18next": "^19.3.3",
     "iframe-resizer": "^4.2.10",
     "lottie-web": "^5.6.6",
+    "mp4box": "^0.3.20",
     "notistack": "^0.9.9",
     "pako": "^1.0.11",
     "react": "^16.12.0",
