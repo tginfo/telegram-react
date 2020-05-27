@@ -229,7 +229,7 @@ class ChatDetails extends React.Component {
 
         copy(usernameLink + username);
 
-        this.handleScheduledAction(t('TextCopied'));
+        this.handleScheduledAction(t('LinkCopied'));
     };
 
     handleScheduledAction = message => {
@@ -428,7 +428,7 @@ class ChatDetails extends React.Component {
                                     </>
                                 )}
                                 {bio && (
-                                    <ListItem className='list-item'>
+                                    <ListItem className='list-item' alignItems='flex-start'>
                                         <ListItemIcon>
                                             <ErrorOutlineIcon className='chat-details-info-icon' />
                                         </ListItemIcon>
