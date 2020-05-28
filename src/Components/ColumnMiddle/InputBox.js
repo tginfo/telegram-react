@@ -34,6 +34,8 @@ import StickerStore from '../../Stores/StickerStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './InputBox.css';
 import { editMessage, replyMessage } from '../../Actions/Client';
+import UserStore from '../../Stores/UserStore';
+import KeyboardManager, { KeyboardHandler } from '../Additional/KeyboardManager';
 
 const EmojiPickerButton = React.lazy(() => import('./../ColumnMiddle/EmojiPickerButton'));
 
@@ -134,10 +136,10 @@ class InputBox extends Component {
         document.addEventListener('selectionchange', this.selectionChangeListener, true);
 
         AppStore.on('clientUpdateChatId', this.onClientUpdateChatId);
-        AppStore.on('clientUpdateEditMessage', this.onClientUpdateEditMessage);
         AppStore.on('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
         ChatStore.on('updateChatDraftMessage', this.onUpdateChatDraftMessage);
         FileStore.on('clientUpdateSendFiles', this.onClientUpdateSendFiles);
+        MessageStore.on('clientUpdateEditMessage', this.onClientUpdateEditMessage);
         MessageStore.on('clientUpdateReply', this.onClientUpdateReply);
         MessageStore.on('updateDeleteMessages', this.onUpdateDeleteMessages);
         StickerStore.on('clientUpdateStickerSend', this.onClientUpdateStickerSend);
@@ -149,10 +151,10 @@ class InputBox extends Component {
         this.saveDraft();
 
         AppStore.off('clientUpdateChatId', this.onClientUpdateChatId);
-        AppStore.off('clientUpdateEditMessage', this.onClientUpdateEditMessage);
         AppStore.off('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
         ChatStore.off('updateChatDraftMessage', this.onUpdateChatDraftMessage);
         FileStore.off('clientUpdateSendFiles', this.onClientUpdateSendFiles);
+        MessageStore.off('clientUpdateEditMessage', this.onClientUpdateEditMessage);
         MessageStore.off('clientUpdateReply', this.onClientUpdateReply);
         MessageStore.off('updateDeleteMessages', this.onUpdateDeleteMessages);
         StickerStore.off('clientUpdateStickerSend', this.onClientUpdateStickerSend);
@@ -452,7 +454,7 @@ class InputBox extends Component {
     };
 
     handleSubmit = () => {
-        const { chatId, editMessageId } = this.state;
+        const { chatId, editMessageId, replyToMessageId } = this.state;
         const element = this.newMessageRef.current;
         if (!element) return;
 
@@ -460,8 +462,6 @@ class InputBox extends Component {
 
         element.innerText = null;
         this.handleInput();
-
-        editMessage(chatId, 0);
 
         if (!innerHTML) return;
         if (!innerHTML.trim()) return;
@@ -493,6 +493,7 @@ class InputBox extends Component {
             } else if (caption) {
                 this.editMessageCaption(formattedText);
             }
+            editMessage(chatId, 0);
         } else {
             this.sendMessage(inputContent, false, result => {});
         }
@@ -739,29 +740,44 @@ class InputBox extends Component {
         const { chatId, editMessageId, replyToMessageId } = this.state;
         if (editMessageId) {
             editMessage(chatId, 0);
+            return true;
         } else if (replyToMessageId) {
             replyMessage(chatId, 0);
+            return true;
         }
+
+        return false;
     };
 
     handleKeyDown = event => {
-        const { altKey, ctrlKey, keyCode, metaKey, repeat, shiftKey } = event;
+        const { altKey, ctrlKey, key, keyCode, metaKey, repeat, shiftKey } = event;
+        const { editMessageId, replyToMessageId } = this.state;
 
-        // console.log('[k] handleKeyDown', altKey, ctrlKey, keyCode, metaKey, repeat, shiftKey);
+        // console.log('[keydown] input.handleKeyDown', key, keyCode, altKey, ctrlKey, keyCode, metaKey, repeat, shiftKey);
 
         switch (keyCode) {
-            // enter
+            // ctrl+alt+0 fix
+            case 48: {
+                if (altKey && ctrlKey && !metaKey && !shiftKey) {
+                    if (editMessageId) return;
+                    if (replyToMessageId) return;
+
+                    event.preventDefault();
+                }
+
+                break;
+            }
             case 13: {
-                if (!altKey && (ctrlKey || metaKey) && !shiftKey) {
-                    if (!repeat) {
-                        // new line on Enter+Cmd or Enter+Ctrl
-                        document.execCommand('insertLineBreak');
-                    }
+                // enter+cmd or enter+ctrl
+                if (!altKey && (ctrlKey || metaKey) && !shiftKey && !repeat) {
+                    document.execCommand('insertLineBreak');
 
                     event.preventDefault();
                     event.stopPropagation();
-                } else if (!altKey && !ctrlKey && !metaKey && !shiftKey) {
-                    if (!repeat) this.handleSubmit();
+                }
+                // enter
+                else if (!altKey && !ctrlKey && !metaKey && !shiftKey && !repeat) {
+                    this.handleSubmit();
 
                     event.preventDefault();
                     event.stopPropagation();
@@ -771,10 +787,10 @@ class InputBox extends Component {
             // esc
             case 27: {
                 if (!altKey && !ctrlKey && !metaKey && !shiftKey) {
-                    if (!repeat) this.handleCancel();
-
-                    event.preventDefault();
-                    event.stopPropagation();
+                    if (!repeat && this.handleCancel()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
                 }
                 break;
             }
@@ -798,8 +814,8 @@ class InputBox extends Component {
             }
             // cmd + b
             case 66: {
-                if (!altKey && (ctrlKey || metaKey) && !shiftKey) {
-                    if (!repeat) this.handleBold();
+                if (!altKey && (ctrlKey || metaKey) && !shiftKey && !repeat) {
+                    this.handleBold();
 
                     event.preventDefault();
                     event.stopPropagation();
@@ -808,8 +824,8 @@ class InputBox extends Component {
             }
             // cmd + i
             case 73: {
-                if (!altKey && (ctrlKey || metaKey) && !shiftKey) {
-                    if (!repeat) this.handleItalic();
+                if (!altKey && (ctrlKey || metaKey) && !shiftKey && !repeat) {
+                    this.handleItalic();
 
                     event.preventDefault();
                     event.stopPropagation();
@@ -818,15 +834,15 @@ class InputBox extends Component {
             }
             case 75: {
                 // cmd + k
-                if (!altKey && (ctrlKey || metaKey) && !shiftKey) {
-                    if (!repeat) this.handleUrl();
+                if (!altKey && (ctrlKey || metaKey) && !shiftKey && !repeat) {
+                    this.handleUrl();
 
                     event.preventDefault();
                     event.stopPropagation();
                 }
                 // alt + cmd + k
-                else if (altKey && (ctrlKey || metaKey) && !shiftKey) {
-                    if (!repeat) this.handleMono();
+                else if (altKey && (ctrlKey || metaKey) && !shiftKey && !repeat) {
+                    this.handleMono();
 
                     event.preventDefault();
                     event.stopPropagation();
@@ -835,8 +851,8 @@ class InputBox extends Component {
             }
             // alt + cmd + n
             case 192: {
-                if (altKey && (ctrlKey || metaKey) && !shiftKey) {
-                    if (!repeat) this.handleClear();
+                if (altKey && (ctrlKey || metaKey) && !shiftKey && !repeat) {
+                    this.handleClear();
 
                     event.preventDefault();
                     event.stopPropagation();
@@ -1055,6 +1071,10 @@ class InputBox extends Component {
                 chat_id: chatId,
                 message_ids: [result.id]
             });
+
+            if (replyToMessageId) {
+                replyMessage(chatId, 0);
+            }
 
             callback(result);
         } catch (error) {
@@ -1303,6 +1323,7 @@ class InputBox extends Component {
                                     contentEditable
                                     suppressContentEditableWarning
                                     onKeyDown={this.handleKeyDown}
+                                    // onKeyDownCapture={this.handleKeyDownCapture}
                                     onPaste={this.handlePaste}
                                     onInput={this.handleInput}
                                 />
