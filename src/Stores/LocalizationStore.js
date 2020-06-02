@@ -103,6 +103,7 @@ i18n.use(initReactI18next).init({
                 SendAsPhoto: 'Send as a photo'
             }
         },
+
         ru: {
             search: {
                 ChatsAndContacts: 'Чаты и контакты',
@@ -185,7 +186,173 @@ i18n.use(initReactI18next).init({
                 SendAsFile: 'Отправить как файл',
                 SendAsPhoto: 'Отправить как фото'
             }
-        }
+        },
+
+        it: {
+            search: {
+                ChatsAndContacts: 'Chat e contatti',
+                SearchMessagesIn: 'Cerca messaggi in'
+            },
+            settings: {
+                ContactJoinedEnabled: 'Attivato',
+                ContactJoinedDisabled: 'Disattivato',
+                NotificationsEnabled: 'Attivate',
+                NotificationsDisabled: 'Disattivate',
+                PreviewEnabled: 'Attivata',
+                PreviewDisabled: 'Disattivata',
+                BioAbout: 'Qualsiasi dettaglio come età, lavoro o città.\nEsempio: Designer di 23 anni da San Francisco.',
+                Archived: 'Chat archiviate',
+                Saved: 'Messaggi salvati',
+                EditProfile: 'Modifica profilo',
+                GeneralSettings: 'Impostazioni generali'
+            },
+            local: {
+                CopyMessageLink: 'Copia link messaggio',
+                DragToReposition: 'Trascina per riposizionare',
+                PollQuizOneRightAnswer: 'Il quiz ha solo una risposta esatta.',
+                LeftChannel: 'Canale abbandonato',
+                LeftGroup: 'Gruppo abbandonato',
+                EnterPassword: 'Inserisci password',
+                YourAccountProtectedWithPassword: 'Il tuo account è protetto con una password aggiuntiva.',
+                DeletedMessage: 'Messaggi cancellati',
+                YourPhone: 'Il tuo numero',
+                SignInToTelegram: 'Accedi a Telegram',
+                PhoneNumber: 'Numero di telefono',
+                Country: 'Paese',
+                KeepMeSignedIn: 'Mantieni l\'accesso',
+                StartText: 'Conferma il prefisso internazionale e inserisci il tuo numero di telefono.',
+                Next: 'Avanti',
+                InvalidPhoneNumber: 'Numero di telefono non valido. Per favore controlla il numero e riprova.',
+                More: 'Altro',
+                SendFileConfirmation: 'Sei sicuro di voler mandare il file?',
+                SendFilesConfirmation: 'Sei sicuro di voler mandare i file?',
+                SendMessage: 'Invia messaggio',
+                ChatInfo: 'Info chat',
+                ChannelInfo: 'Info canale',
+                Stickers: 'STICKER',
+                Emoji: 'EMOJI',
+                SelectChatToStartMessaging: 'Seleziona una chat per iniziare a messaggiare',
+                Text: 'Testo',
+                ViewChannelInfo: 'Visualizza info canale',
+                ViewGroupInfo: 'Visualizza info gruppo',
+                ViewProfile: 'Visualizza profilo',
+                GoToMessage: 'Vai al messaggio',
+                PhotosTitle: 'Foto',
+                VideosTitle: 'Video',
+                VoiceTitle: 'Messaggi vocali',
+                UpdateDraftConfirmation: 'Sei sicuro di voler aggiornare la bozza?'
+            },
+            emoji: {
+                Search: 'Cerca',
+                NotEmojiFound: 'Emoji non trovato',
+                ChooseDefaultSkinTone: 'Scegli ',
+                SearchResults: 'Risultati di ricerca',
+                Recent: 'Usati di recente',
+                SmileysPeople: 'Faccine e Persone',
+                AnimalsNature: 'Animali e Natura',
+                FoodDrink: 'Cibo e Bevande',
+                Activity: 'Attività',
+                TravelPlaces: 'Viaggi e Luoghi',
+                Objects: 'Oggetti',
+                Symbols: 'Simboli',
+                Flags: 'Bandiere',
+                Custom: 'Custom'
+            },
+            translation: {
+                AppName: 'Telegram',
+                Connecting: 'Connetto...',
+                ConnectingToProxy: 'Connetto al proxy...',
+                Loading: 'Carico...',
+                Updating: 'Aggiorno...',
+                WaitingForNetwork: 'Attendo la rete...',
+                ContinueOnThisLanguage: 'Continue in English',
+                SendAsFile: 'Invia come file',
+                SendAsPhoto: 'Invia come immagine'
+            }
+        },
+
+        es: {
+            search: {
+                ChatsAndContacts: 'Chats y contactos',
+                SearchMessagesIn: 'Buscar mensajes en'
+            },
+            settings: {
+                ContactJoinedEnabled: 'Activado',
+                ContactJoinedDisabled: 'Desactivado',
+                NotificationsEnabled: 'Activadas',
+                NotificationsDisabled: 'Desactivadas',
+                PreviewEnabled: 'Activada',
+                PreviewDisabled: 'Desactivada',
+                BioAbout: 'Datos como la edad, ocupación o ciudad. Ejemplo: Diseñador de Chicago. 23 años.',
+                Archived: 'Archivados',
+                Saved: 'Guardados',
+                EditProfile: 'Editar perfil',
+                GeneralSettings: 'Ajustes generales'
+            },
+            local: {
+                CopyMessageLink: 'Copiar enlace del mensaje',
+                DragToReposition: 'Arrastra para posicionar',
+                PollQuizOneRightAnswer: 'Un cuestionario tiene sólo una respuesta correcta.',
+                LeftChannel: 'Salió del canal',
+                LeftGroup: 'Salió del grupo',
+                EnterPassword: 'Pon una contraseña',
+                YourAccountProtectedWithPassword: 'Tu cuenta está protegida con una contraseña adicional.',
+                DeletedMessage: 'Mensaje eliminado',
+                YourPhone: 'Tu teléfono',
+                SignInToTelegram: 'Registrarse en Telegram',
+                PhoneNumber: 'Número de teléfono',
+                Country: 'País',
+                KeepMeSignedIn: 'Mantenerme registrado',
+                StartText: 'Por favor, confirma el código de tu país y pon tu número de teléfono.',
+                Next: 'Siguiente',
+                InvalidPhoneNumber: 'Número de teléfono inválido. Por favor, revisa el número y reinténtalo.',
+                More: 'Más',
+                SendFileConfirmation: '¿Quieres enviar el archivo?',
+                SendFilesConfirmation: '¿Quieres enviar los archivos?',
+                SendMessage: 'Enviar mensaje',
+                ChatInfo: 'Info. del chat',
+                ChannelInfo: 'Info. del canal',
+                Stickers: 'STICKERS',
+                Emoji: 'EMOJIS',
+                SelectChatToStartMessaging: 'Elige un chat para comenzar',
+                Text: 'Texto',
+                ViewChannelInfo: 'Ver info. del canal',
+                ViewGroupInfo: 'Ver info. del grupo',
+                ViewProfile: 'Ver perfil',
+                GoToMessage: 'Ir al mensaje',
+                PhotosTitle: 'Fotos',
+                VideosTitle: 'Videos',
+                VoiceTitle: 'Mensajes de voz',
+                UpdateDraftConfirmation: '¿Quieres actualizar el borrador?'
+            },
+            emoji: {
+                Search: 'Buscar',
+                NotEmojiFound: 'No se encontraron emojis',
+                ChooseDefaultSkinTone: 'Elige el tono de piel por defecto',
+                SearchResults: 'Resultados de búsqueda',
+                Recent: 'Uso frecuente',
+                SmileysPeople: 'Emoticonos y personas',
+                AnimalsNature: 'Animales y naturaleza',
+                FoodDrink: 'Comida y bebida',
+                Activity: 'Actividad',
+                TravelPlaces: 'Viajes y destinos',
+                Objects: 'Objetos',
+                Symbols: 'Símbolos',
+                Flags: 'Banderas',
+                Custom: 'Personalizado'
+            },
+            translation: {
+                AppName: 'Telegram',
+                Connecting: 'Conectando...',
+                ConnectingToProxy: 'Conectando al proxy...',
+                Loading: 'Cargando...',
+                Updating: 'Actualizando...',
+                WaitingForNetwork: 'Esperando red...',
+                ContinueOnThisLanguage: 'Continuar en español',
+                SendAsFile: 'Enviar como archivo',
+                SendAsPhoto: 'Enviar como foto'
+            }
+        },
     },
     lng,
     fallbackLng,

@@ -1904,6 +1904,152 @@ export function getEntities(text) {
     return { text, entities };
 }
 
+function compareEntities(a, b) {
+    const { offset: offsetA } = a;
+    const { offset: offsetB } = b;
+
+    if (offsetA < offsetB) {
+        return -1;
+    }
+
+    if (offsetA > offsetB) {
+        return 1;
+    }
+
+    return 0;
+}
+
+export function getUrlMentionHashtagEntities(text, entities) {
+    const { text: t1, entities: e1 } = getUrlEntities(text, entities);
+
+    const { text: t2, entities: e2 } = getMentionHashtagEntities(t1, e1);
+
+    return { text: t2, entities: e2 };
+}
+
+const urlRegExp = /((ftp|http|https):\/\/)?([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?/g;
+
+export function getUrlEntities(text, entities) {
+    let e = [];
+    const regExp = urlRegExp;
+    let result = regExp.exec(text);
+    while (result) {
+        const { index: offset } = result;
+        const length = result[0].length;
+
+        e.push({
+            '@type': 'textEntity',
+            type: { '@type': 'textEntityTypeUrl' },
+            length,
+            offset
+        });
+
+        result = regExp.exec(text);
+    }
+
+    return { text, entities: [...entities, ...e].sort(compareEntities) };
+}
+
+export function getMentionHashtagEntities(text, entities) {
+    let e = [];
+    const regExp = mentionHashtagRegExp;
+    let result = regExp.exec(text);
+    while (result) {
+        let { index: offset } = result;
+        let i = 1;
+
+        let ch = text[offset];
+        if (ch !== '#' && ch !== '@') {
+            offset++;
+            i++;
+            ch = text[offset];
+        }
+
+        const length = result[0].length - i + 1;
+
+        if (ch === '@') {
+            e.push({
+                '@type': 'textEntity',
+                type: { '@type': 'textEntityTypeMention' },
+                length,
+                offset
+            });
+        } else if (ch === '#') {
+            e.push({
+                '@type': 'textEntity',
+                type: { '@type': 'textEntityTypeHashtag' },
+                length,
+                offset
+            });
+        }
+
+        result = regExp.exec(text);
+    }
+
+    return { text, entities: [...entities, ...e].sort(compareEntities) };
+}
+
+const twitterInstagramEntities = new Map();
+const mentionHashtagRegExp = /(^|\s|\()@[a-zA-Z\d_.]{1,32}|(^|\s|\()#[\w]+/g;
+
+// based on https://github.com/DrKLO/Telegram/blob/5a2a813dc029ba1b9a31b514a78eb85fced0183f/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java#L3191
+export function getTwitterInstagramEntities(patternType, text, entities) {
+    const key = `${patternType}_${text}`;
+
+    let e = [];
+    if (!twitterInstagramEntities.has(key)) {
+        let result = mentionHashtagRegExp.exec(text);
+        while (result) {
+            let { index: offset } = result;
+            let i = 1;
+
+            let ch = text[offset];
+            if (ch !== '@' && ch !== '#') {
+                offset++;
+                i++;
+                ch = text[offset];
+            }
+
+            const length = result[0].length - i + 1;
+            const foundText = result[0].substr(i);
+            let url = null;
+
+            // instagram
+            if (patternType === 1) {
+                if (ch === '@') {
+                    url = 'https://instagram.com/' + foundText;
+                } else if (ch === '#') {
+                    url = 'https://instagram.com/explore/tags/' + foundText;
+                }
+                // twitter
+            } else if (patternType === 2) {
+                if (ch === '@') {
+                    url = 'https://twitter.com/' + foundText;
+                } else if (ch === '#') {
+                    url = 'https://twitter.com/hashtag/' + foundText;
+                }
+            }
+
+            if (url) {
+                e.push({
+                    '@type': 'textEntity',
+                    type: { '@type': 'textEntityTypeTextUrl', url },
+                    length,
+                    offset
+                });
+            }
+
+            result = mentionHashtagRegExp.exec(text);
+        }
+
+        twitterInstagramEntities.set(key, e);
+    } else {
+        e = twitterInstagramEntities.get(key);
+    }
+
+    return { text, entities: [...entities, ...e].sort(compareEntities) };
+}
+
 export function getHTMLEntities(text, entities) {
     const result = new DOMParser().parseFromString(text, 'text/html');
 

@@ -7,16 +7,16 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
+import * as ReactDOM from 'react-dom';
 import { withTranslation } from 'react-i18next';
 import { compose, withRestoreRef, withSaveRef } from '../../Utils/HOC';
 import Animation from '../Message/Media/Animation';
-import { loadAnimationContent, loadAnimationThumbnailContent, loadStickerSetContent } from '../../Utils/File';
+import { loadAnimationContent, loadAnimationThumbnailContent } from '../../Utils/File';
+import { compareMaps, debounce, throttle } from '../../Utils/Common';
 import AnimationStore from '../../Stores/AnimationStore';
 import FileStore from '../../Stores/FileStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './GifsPicker.css'
-import * as ReactDOM from 'react-dom';
-import { compareMaps, debounce, throttle } from '../../Utils/Common';
 
 class GifsPicker extends React.Component {
 
@@ -76,6 +76,10 @@ class GifsPicker extends React.Component {
 
             AnimationStore.savedAnimations = result;
             savedAnimations = result;
+
+            this.forceUpdate(() => {
+                this.start();
+            });
         }
 
         // load content
@@ -98,14 +102,17 @@ class GifsPicker extends React.Component {
     };
 
     loadInViewContent = (padding = 0) => {
-        // console.log('[gp] loadInViewContent');
+        console.log('[gp] loadInViewContent');
         const scroll = this.scrollRef.current;
 
         const { savedAnimations } = AnimationStore;
+        if (!savedAnimations) return;
+
+        const { animations } = savedAnimations;
 
         const inViewMap = new Map();
         const inViewIndexes = [];
-        savedAnimations.animations.forEach((x, index) => {
+        animations.forEach((x, index) => {
             const item = this.itemsMap.get(`${index}_${x.animation.id}`);
             const node = ReactDOM.findDOMNode(item);
             if (node) {
@@ -130,12 +137,12 @@ class GifsPicker extends React.Component {
 
         const { animationsInView } = AnimationStore;
         if (compareMaps(animationsInView, inViewMap)) {
-            // console.log('[gp] inViewItems equals', inViewIndexes, animationsInView);
+            console.log('[gp] inViewItems equals', inViewIndexes, animationsInView);
             return;
         }
 
 
-        // console.log('[gp] inViewItems', inViewIndexes);
+        console.log('[gp] inViewItems', inViewIndexes);
         TdLibController.clientUpdate({
             '@type': 'clientUpdateAnimationsInView',
             animations: inViewMap
@@ -150,30 +157,101 @@ class GifsPicker extends React.Component {
         // });
     };
 
+    handleMouseDown = event => {
+        const stickerId = Number(event.currentTarget.dataset.animationIndex);
+
+        this.mouseDownStickerId = stickerId;
+        const now = Date.now();
+
+        this.setState({ previewStickerId: stickerId, timestamp: now, showPreview: false, cancelSend: false });
+        setTimeout(() => {
+            const { timestamp } = this.state;
+            if (timestamp === now) {
+                this.setState({ showPreview: true, cancelSend: true }, () => {
+                    const { onPreview } = this.props;
+                    const { recent, sets } = this.state;
+
+                    const { savedAnimations } = AnimationStore;
+
+                    const sticker = savedAnimations.animations[stickerId];
+                    onPreview(sticker);
+                });
+            }
+        }, 500);
+
+        // this.loadPreviewContent(stickerId);
+
+        this.mouseDown = true;
+        document.addEventListener('mouseup', this.handleMouseUp);
+
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+    };
+
+    handleMouseEnter = event => {
+        const stickerId = Number(event.currentTarget.dataset.animationIndex);
+
+        if (!this.mouseDown) return;
+
+        if (this.mouseDownStickerId !== stickerId) {
+            this.mouseDownStickerId = null;
+        }
+        this.setState({ previewStickerId: stickerId });
+        // this.loadPreviewContent(stickerId);
+
+        const { onPreview } = this.props;
+        const { savedAnimations } = AnimationStore;
+
+        const sticker = savedAnimations.animations[stickerId];
+        onPreview(sticker);
+    };
+
+    handleMouseUp = () => {
+        this.setState({ previewStickerId: 0, timestamp: 0, showPreview: false });
+
+        const { onPreview } = this.props;
+
+        onPreview(null);
+
+        this.mouseDown = false;
+        document.removeEventListener('mouseup', this.handleMouseUp);
+    };
+
+    openAnimation = animation => {
+        const { onSelect } = this.props;
+        const { cancelSend } = this.state;
+
+        if (cancelSend) return;
+
+        onSelect(animation);
+    };
+
     render() {
-        const { t, onSelect } = this.props;
+        const { t, style } = this.props;
         const { savedAnimations } = AnimationStore;
         if (!savedAnimations) return null;
 
         this.itemsMap.clear();
         const items = savedAnimations.animations.map((x, index) => (
-            // <div
-            //     key={`${index}_${x.animation.id}`}
-            //     ref={el => this.itemsMap.set(`${index}_${x.animation.id}`, el)}
-            //     >
+            <div
+                data-animation-index={index}
+                key={`${index}_${x.animation.id}`}
+                ref={el => this.itemsMap.set(`${index}_${x.animation.id}`, el)}
+                onMouseDown={this.handleMouseDown}
+                onMouseEnter={this.handleMouseEnter}
+                >
                 <Animation
-                    key={`${index}_${x.animation.id}`}
-                    ref={el => this.itemsMap.set(`${index}_${x.animation.id}`, el)}
                     animation={x}
-                    openMedia={() => onSelect(x)}
+                    openMedia={() => this.openAnimation(x)}
                     picker={true}
-                    style={{ width: 105, height: 105, margin: 2, borderRadius: 0 }}
+                    style={{ width: 104, height: 104, margin: 2, borderRadius: 0 }}
                 />
-            // </div>
+            </div>
         ));
 
         return (
-            <div className='gifs-picker'>
+            <div className='gifs-picker' style={style}>
                 <div ref={this.scrollRef} className='gifs-picker-scroll' onScroll={this.handleScroll}>
                     {items}
                 </div>
