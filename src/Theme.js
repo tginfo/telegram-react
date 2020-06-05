@@ -252,6 +252,32 @@ function createTheme(type, primary) {
                     minWidth: 150
                 }
             },
+            MuiListItemIcon: {
+                root: {
+                    minWidth: 40
+                },
+                alignItemsFlexStart: {
+                    marginTop: 6
+                }
+            },
+            // MuiListItemText: {
+            //     root: {
+            //         marginTop: 0,
+            //         marginBottom: 0
+            //     }
+            // },
+            // MuiListItem: {
+            //     root: {
+            //         paddingTop: 10,
+            //         paddingBottom: 10
+            //     }
+            // },
+            MuiMenuItem: {
+                root: {
+                    paddingTop: 10,
+                    paddingBottom: 10
+                }
+            },
             MuiTouchRipple
         }
     });

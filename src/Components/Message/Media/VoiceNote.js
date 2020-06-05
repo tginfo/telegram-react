@@ -13,22 +13,23 @@ import VoiceNoteTile from '../../Tile/VoiceNoteTile';
 import MediaStatus from './MediaStatus';
 import VoiceNoteSlider from './VoiceNoteSlider';
 import './VoiceNote.css';
+import { isMeChat } from '../../../Utils/Chat';
 
 class VoiceNote extends React.Component {
     render() {
         const { chatId, messageId, voiceNote, openMedia, title, meta, caption } = this.props;
         if (!voiceNote) return null;
 
-        const { duration, voice: file } = voiceNote;
+        const { duration, voice: file, waveform } = voiceNote;
 
         return (
             <div className={classNames('voice-note', 'document', { 'media-title': title })}>
                 <VoiceNoteTile chatId={chatId} messageId={messageId} file={file} openMedia={openMedia} />
                 <div className='voice-note-content'>
-                    <VoiceNoteSlider chatId={chatId} messageId={messageId} duration={duration} />
+                    <VoiceNoteSlider chatId={chatId} messageId={messageId} duration={duration} waveform={waveform} />
                     <div className='voice-note-meta'>
                         <AudioAction chatId={chatId} messageId={messageId} duration={duration} file={file} />
-                        <MediaStatus chatId={chatId} messageId={messageId} icon={'\u00A0•'} />
+                        {!isMeChat(chatId) && <MediaStatus chatId={chatId} messageId={messageId} icon={<div className='voice-note-meta-unread'/>} />}
                         {!caption && meta}
                     </div>
                 </div>
