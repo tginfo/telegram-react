@@ -44,6 +44,10 @@ export function getNormalizedWaveform(data) {
         waveform.push(((bits >>> barPadding) & 0x1F) / 31.0);
     }
 
+    for (let i = 0; i < (100 - barsCount); i++) {
+        waveform.push(0);
+    }
+
     waveformCache.set(data, waveform);
 
     return waveform;
@@ -303,14 +307,14 @@ function toIndex(row, column, sets, stickersPerRow) {
 function getInputMediaThumbnail(thumbnail) {
     if (!thumbnail) return null;
 
-    const { photo, width, height } = thumbnail;
-    if (!photo) return null;
+    const { file, width, height } = thumbnail;
+    if (!file) return null;
 
     return {
         '@type': 'inputThumbnail',
         thumbnail: {
             '@type': 'inputFileId',
-            id: photo.id
+            id: file.id
         },
         width,
         height

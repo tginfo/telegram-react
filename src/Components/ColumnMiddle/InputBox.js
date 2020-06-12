@@ -10,6 +10,13 @@ import classNames from 'classnames';
 import { withTranslation } from 'react-i18next';
 import emojiRegex from 'emoji-regex';
 import MediaRecorder from 'opus-media-recorder';
+import Button from '@material-ui/core/Button';
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogContentText from '@material-ui/core/DialogContentText';
+import DialogTitle from '@material-ui/core/DialogTitle';
+import SpeedDialIcon from '@material-ui/lab/SpeedDialIcon';
 import DoneIcon from '../../Assets/Icons/Done';
 import IconButton from '@material-ui/core/IconButton';
 import InsertEmoticonIcon from '../../Assets/Icons/Smile';
@@ -21,6 +28,7 @@ import CreatePollDialog from '../Popup/CreatePollDialog';
 import EditUrlDialog from '../Popup/EditUrlDialog';
 import InputBoxHeader from './InputBoxHeader';
 import PasteFilesDialog from '../Popup/PasteFilesDialog';
+import RecordTimer from './RecordTimer';
 import EditMediaDialog from '../Popup/EditMediaDialog';
 import OutputTypingManager from '../../Utils/OutputTypingManager';
 import { draftEquals, getChatDraft, getChatDraftReplyToMessageId, isMeChat, isPrivateChat } from '../../Utils/Chat';
@@ -29,7 +37,7 @@ import { getMediaDocumentFromFile, getMediaPhotoFromFile, isEditedMedia } from '
 import { getEntities, getNodes, isTextMessage } from '../../Utils/Message';
 import { getSize, readImageSize } from '../../Utils/Common';
 import { editMessage, replyMessage } from '../../Actions/Client';
-import { PHOTO_SIZE } from '../../Constants';
+import { PHOTO_SIZE, VOICENOTE_MIN_RECORD_DURATION } from '../../Constants';
 import AnimationStore from '../../Stores/AnimationStore';
 import AppStore from '../../Stores/ApplicationStore';
 import ChatStore from '../../Stores/ChatStore';
@@ -38,10 +46,6 @@ import MessageStore from '../../Stores/MessageStore';
 import StickerStore from '../../Stores/StickerStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './InputBox.css';
-import RecordTimer from './RecordTimer';
-import SpeedDialIcon from '@material-ui/lab/SpeedDialIcon';
-import ArrowBackIcon from '../../Assets/Icons/Back';
-import MenuIcon from '../../Assets/Icons/Menu';
 
 const EmojiPickerButton = React.lazy(() => import('./../ColumnMiddle/EmojiPickerButton'));
 
@@ -60,7 +64,8 @@ class InputBox extends Component {
             replyToMessageId: getChatDraftReplyToMessageId(chatId),
             editMessageId: 0,
             recordingReady: true,
-            recording: false,
+            recordingTime: null,
+            recordPermissionDenied: false,
             sendFile: null
         };
 
@@ -69,7 +74,20 @@ class InputBox extends Component {
 
     shouldComponentUpdate(nextProps, nextState) {
         const { t } = this.props;
-        const { chatId, newDraft, files, replyToMessageId, editMessageId, openEditMedia, openEditUrl, sendFile, recordingReady, recording } = this.state;
+        const {
+            chatId,
+            newDraft,
+            files,
+            replyToMessageId,
+            editMessageId,
+            openEditMedia,
+            openEditUrl,
+            sendFile,
+            recordingReady,
+            recordingTime,
+            recordPermissionDenied,
+            shook
+        } = this.state;
 
         if (nextProps.t !== t) {
             return true;
@@ -107,11 +125,19 @@ class InputBox extends Component {
             return true;
         }
 
+        if (nextState.recordingTime !== recordingTime) {
+            return true;
+        }
+
         if (nextState.recordingReady !== recordingReady) {
             return true;
         }
 
-        if (nextState.recording !== recording) {
+        if (nextState.recordPermissionDenied !== recordPermissionDenied) {
+            return true;
+        }
+
+        if (nextState.shook !== shook) {
             return true;
         }
 
@@ -152,6 +178,7 @@ class InputBox extends Component {
         document.addEventListener('selectionchange', this.selectionChangeListener, true);
 
         AnimationStore.on('clientUpdateAnimationSend', this.onClientUpdateAnimationSend);
+        AppStore.on('clientUpdateInputShake', this.onClientUpdateInputShake);
         AppStore.on('clientUpdateChatId', this.onClientUpdateChatId);
         AppStore.on('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
         ChatStore.on('updateChatDraftMessage', this.onUpdateChatDraftMessage);
@@ -168,6 +195,7 @@ class InputBox extends Component {
         this.saveDraft();
 
         AnimationStore.off('clientUpdateAnimationSend', this.onClientUpdateAnimationSend);
+        AppStore.off('clientUpdateInputShake', this.onClientUpdateInputShake);
         AppStore.off('clientUpdateChatId', this.onClientUpdateChatId);
         AppStore.off('clientUpdateFocusWindow', this.onClientUpdateFocusWindow);
         ChatStore.off('updateChatDraftMessage', this.onUpdateChatDraftMessage);
@@ -178,7 +206,24 @@ class InputBox extends Component {
         StickerStore.off('clientUpdateStickerSend', this.onClientUpdateStickerSend);
 
         document.removeEventListener('selectionchange', this.selectionChangeListener, true);
+
+        this.handleCancelRecord();
     }
+
+    onClientUpdateInputShake = update => {
+        const { chatId, messageId } = this.props;
+        const { shook } = this.state;
+
+        if (shook) {
+            this.setState({ shook: false }, () => {
+                setTimeout(() => {
+                    this.setState({ shook: true });
+                }, 0);
+            });
+        } else {
+            this.setState({ shook: true });
+        }
+    };
 
     onClientUpdateSendFiles = update => {
         const { files } = update;
@@ -201,6 +246,8 @@ class InputBox extends Component {
 
     onClientUpdateEditMessage = update => {
         const { chatId, messageId } = update;
+        const { recordingTime } = this.state;
+        if (recordingTime) return;
         if (this.state.chatId !== chatId) return;
 
         if (!messageId) {
@@ -273,8 +320,9 @@ class InputBox extends Component {
 
     onUpdateChatDraftMessage = update => {
         const { chat_id } = update;
-        const { chatId } = this.state;
+        const { chatId, recordingTime } = this.state;
 
+        if (recordingTime) return;
         if (chatId !== chat_id) return;
 
         this.loadDraft();
@@ -306,12 +354,13 @@ class InputBox extends Component {
         };
 
         if (thumbnail) {
-            const { width: thumbnailWidth, height: thumbnailHeight, photo } = thumbnail;
+            const { width: thumbnailWidth, height: thumbnailHeight, file } = thumbnail;
 
             content.thumbnail = {
+                '@type': 'inputThumbnail',
                 thumbnail: {
                     '@type': 'inputFileId',
-                    id: photo.id
+                    id: file.id
                 },
                 width: thumbnailWidth,
                 height: thumbnailHeight
@@ -346,12 +395,13 @@ class InputBox extends Component {
         };
 
         if (thumbnail) {
-            const { width: thumbnailWidth, height: thumbnailHeight, photo } = thumbnail;
+            const { width: thumbnailWidth, height: thumbnailHeight, file } = thumbnail;
 
             content.thumbnail = {
+                '@type': 'inputThumbnail',
                 thumbnail: {
                     '@type': 'inputFileId',
-                    id: photo.id
+                    id: file.id
                 },
                 width: thumbnailWidth,
                 height: thumbnailHeight
@@ -367,7 +417,7 @@ class InputBox extends Component {
     };
 
     onClientUpdateReply = update => {
-        const { chatId: currentChatId } = this.state;
+        const { chatId: currentChatId, recordingTime } = this.state;
         const { chatId, messageId } = update;
 
         if (currentChatId !== chatId) {
@@ -376,7 +426,7 @@ class InputBox extends Component {
 
         this.setState({ replyToMessageId: messageId });
 
-        if (messageId) {
+        if (messageId && !recordingTime) {
             this.setInputFocus();
         }
     };
@@ -398,6 +448,8 @@ class InputBox extends Component {
                 this.loadDraft();
             }
         );
+
+        this.handleCancelRecord();
     };
 
     setDraft = () => {
@@ -461,6 +513,9 @@ class InputBox extends Component {
     }
 
     setInputFocus = () => {
+        const { recordingTime } = this.state;
+        if (recordingTime) return;
+
         setTimeout(() => {
             const element = this.newMessageRef.current;
 
@@ -512,14 +567,18 @@ class InputBox extends Component {
         return { chatId, draftMessage };
     };
 
-    handleSubmit = () => {
-        const { chatId, editMessageId, replyToMessageId, recordingReady, recording } = this.state;
+    handleSubmit = (startRecord = true) => {
+        const { chatId, editMessageId, replyToMessageId, recordingReady, recordingTime } = this.state;
 
-        if (recording) {
+        if (recordingTime) {
+            if ((new Date() - recordingTime) < VOICENOTE_MIN_RECORD_DURATION) {
+                return;
+            }
+
             this.handleStopRecord();
             return;
         } else if (recordingReady) {
-            this.handleRecord();
+            if (startRecord) this.handleRecord();
             return;
         }
 
@@ -845,7 +904,7 @@ class InputBox extends Component {
                 }
                 // enter
                 else if (!altKey && !ctrlKey && !metaKey && !shiftKey && !repeat) {
-                    this.handleSubmit();
+                    this.handleSubmit(false);
 
                     event.preventDefault();
                     event.stopPropagation();
@@ -1366,160 +1425,116 @@ class InputBox extends Component {
         setTimeout(() => this.restoreSelection(), 0);
     };
 
-    handleStopRecord = () => {
-        if (this.recorder) {
-            this.recorder.stop();
-            // this.recorder = null;
-            return;
-        }
+    handleStopRecord = (cancelled = false) => {
+        console.log('[recorder] stop', this.recorder, cancelled);
+        if (!this.recorder) return;
+
+        this.recorder.cancelled = cancelled;
+        this.recorder.stop();
+        this.recorder.stream.getAudioTracks().forEach(track => track.stop());
     }
 
     handleCancelRecord = () => {
-        if (this.recorder) {
-            this.recorder.cancelled = true;
-            this.recorder.stop();
-            // this.recorder = null;
-            return;
-        }
+        this.handleStopRecord(true);
     }
 
     handleRecord = async () => {
+        console.log('[recorder] handleRecord', this.recorder);
         if (this.recorder) return;
 
-        // console.log('start recording called');
-        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        let stream = null;
+        try{
+            console.log('[recorder] stream start', this.recorder);
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            console.log('[recorder] stream ready', this.recorder);
+            if (this.recorder) return;
+        } catch { }
 
-            const constraints = {
-                channelCount: 1,
-                sampleRate: 48000,
-            };
-
-            const track = stream.getAudioTracks()[0];
-            track.applyConstraints(constraints)
-
-            const options = { mimeType: 'audio/ogg; codecs=opus', audioBitsPerSecond: 64000 };
-            const workerOptions = {
-                encoderWorkerFactory: function () {
-                    return new Worker(process.env.PUBLIC_URL + '/opus-media-recorder/encoderWorker.umd.js')
-                },
-                OggOpusEncoderWasmPath: process.env.PUBLIC_URL + '/opus-media-recorder/OggOpusEncoder.wasm'
-            };
-
-            this.recorder = new MediaRecorder(stream, options, workerOptions);
-            this.recorder.start(50);
-
-            const chunks = [];
-
-            this.recorder.addEventListener('dataavailable', (e) => {
-                // console.log('Recording stopped, data available', e.data);
-                chunks.push(e.data);
+        if (!stream) {
+            this.setState({
+                recordPermissionDenied: true
             });
-            this.recorder.addEventListener('start', (e) => {
-                TdLibController.clientUpdate({ '@type': 'clientUpdateRecordStart' });
-                // console.log('start');
-                this.setState({ recording: true });
-            })
-            this.recorder.addEventListener('stop', (e) => {
-                TdLibController.clientUpdate({ '@type': 'clientUpdateRecordStop' });
-                this.setState({ recording: false });
+            return;
+        }
 
-                const { cancelled } = this.recorder;
-                this.recorder = null;
-                if (cancelled) {
+        const constraints = {
+            channelCount: 1,
+            sampleRate: 48000,
+        };
 
-                    return;
-                }
+        const track = stream.getAudioTracks()[0];
+        track.applyConstraints(constraints)
 
-                // console.log('stop');
-                const blob = new Blob(chunks, { 'type' : 'audio/ogg; codecs=opus' });
-                const audioURL = window.URL.createObjectURL(blob);
+        const options = { mimeType: 'audio/ogg; codecs=opus', audioBitsPerSecond: 64000 };
+        const workerOptions = {
+            encoderWorkerFactory: function () {
+                return new Worker(process.env.PUBLIC_URL + '/opus-media-recorder/encoderWorker.umd.js')
+            },
+            OggOpusEncoderWasmPath: process.env.PUBLIC_URL + '/opus-media-recorder/OggOpusEncoder.wasm'
+        };
 
-                const audio = new Audio(audioURL);
-                audio.oncanplay = () => {
-                    // console.log('recorder stopped', audioURL, audio.duration);
+        const recorder = new MediaRecorder(stream, options, workerOptions);
 
-                    const content = {
-                        '@type': 'inputMessageVoiceNote',
-                        voice_note: { '@type': 'inputFileBlob', name: '', size: blob.size, data: blob },
-                        duration: Math.trunc(audio.duration),
-                        waveform: '',
-                        caption: null
-                    };
+        const chunks = [];
 
-                    this.handleSendVoiceNote(content, blob);
+        recorder.ondataavailable = e => {
+            chunks.push(e.data);
+        };
+        recorder.onstart = () => {
+            console.log('[recorder] onstart', this.recorder);
+        };
+        recorder.onstop = () => {
+            TdLibController.clientUpdate({ '@type': 'clientUpdateRecordStop' });
+            this.setState({ recordingTime: null });
+
+            const { cancelled } = this.recorder;
+            console.log('[recorder] onstop', this.recorder, cancelled);
+            this.recorder = null;
+
+            this.loadDraft();
+            if (cancelled) {
+                return;
+            }
+
+            // console.log('stop');
+            const blob = new Blob(chunks, { 'type' : 'audio/ogg; codecs=opus' });
+            const audioURL = window.URL.createObjectURL(blob);
+
+            const audio = new Audio(audioURL);
+            audio.oncanplay = () => {
+                const content = {
+                    '@type': 'inputMessageVoiceNote',
+                    voice_note: { '@type': 'inputFileBlob', name: '', size: blob.size, data: blob },
+                    duration: Math.trunc(audio.duration),
+                    waveform: '',
+                    caption: null
                 };
-            });
-            this.recorder.addEventListener('error', (e) => {
-                TdLibController.clientUpdate({ '@type': 'clientUpdateRecordError' });
-                this.setState({ recording: false });
-                // console.log('error', e);
-            });
-        });
 
-        // if (navigator.mediaDevices.getUserMedia) {
-        //     console.log('getUserMedia supported.');
-        //
-        //     let chunks = [];
-        //
-        //     const onSuccess = stream => {
-        //
-        //     };
-        //
-        //     const onError = error => {
-        //         console.log('The following error occured: ' + error);
-        //     };
-        //
-        //     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        //
-        //     const constraints = {
-        //         channelCount: 1,
-        //         sampleRate: 48000,
-        //     };
-        //
-        //     const track = stream.getAudioTracks()[0];
-        //     track.applyConstraints(constraints)
-        //     // console.log('track', track);
-        //
-        //     // console.log('mediaRecorder', MediaRecorder.isTypeSupported('audio/ogg;codecs=opus'));
-        //
-        //     const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/ogg;codecs=opus' });
-        //
-        //     console.log('mediaRecorder', mediaRecorder);
-        //
-        //     mediaRecorder.onstop = event => {
-        //         console.log("data available after MediaRecorder.stop() called.");
-        //
-        //         const blob = new Blob(chunks, { 'type' : 'audio/ogg; codecs=opus' });
-        //         chunks = [];
-        //         const audioURL = window.URL.createObjectURL(blob);
-        //
-        //         const audio = new Audio(audioURL);
-        //         audio.play();
-        //         console.log("recorder stopped", audioURL, audio);
-        //
-        //         const content = {
-        //             '@type': 'inputMessageVoiceNote',
-        //             voice_note: { '@type': 'inputFileBlob', name: '', size: blob.size, data: blob },
-        //             duration: 10,
-        //             waveform: '',
-        //             caption: null
-        //         };
-        //
-        //         this.handleSendVoiceNote(content, blob);
-        //     };
-        //
-        //     mediaRecorder.ondataavailable = e => {
-        //         console.log("recorder dataavailable", e.data);
-        //         chunks.push(e.data);
-        //     };
-        //
-        //     mediaRecorder.start(100);
-        //
-        //     this.mediaRecorder = mediaRecorder;
-        // } else {
-        //     console.log('getUserMedia not supported on your browser!');
-        // }
+                this.handleSendVoiceNote(content, blob);
+            };
+        };
+        recorder.onerror = () => {
+            TdLibController.clientUpdate({ '@type': 'clientUpdateRecordError' });
+            this.setState({ recordingTime: null });
+
+            this.loadDraft();
+            // console.log('error', e);
+        };
+
+        this.recorder = recorder;
+        this.recorder.start(50);
+        this.startTime = new Date();
+
+        console.log('[recorder] start', this.recorder);
+        TdLibController.clientUpdate({ '@type': 'clientUpdateRecordStart' });
+        this.setState({ recordingTime: new Date() });
     }
+
+    handleClosePermission = () => {
+        this.setState({
+            recordPermissionDenied: false
+        })
+    };
 
     render() {
         const { t } = this.props;
@@ -1535,19 +1550,21 @@ class InputBox extends Component {
             openEditUrl,
             openEditMedia,
             recordingReady,
-            recording
+            recordingTime,
+            recordPermissionDenied,
+            shook
         } = this.state;
 
         const isMediaEditing = editMessageId > 0 && !isTextMessage(chatId, editMessageId);
-        let icon = (<SpeedDialIcon open={!recording && recordingReady} openIcon={<MicrophoneIcon />} icon={<SendIcon />} />);
+        let icon = (<SpeedDialIcon open={!recordingTime && recordingReady} openIcon={<MicrophoneIcon />} icon={<SendIcon />} />);
         if (editMessageId) {
             icon = <DoneIcon/>;
         }
 
         return (
             <div className='inputbox-background'>
-                <div className='inputbox'>
-                    <div className='inputbox-bubble'>
+                <div className={classNames('inputbox', { 'inputbox-recording': recordingTime }, { 'shook': shook })}>
+                    <div className={classNames('inputbox-bubble')}>
                         <InputBoxHeader
                             chatId={chatId}
                             messageId={replyToMessageId}
@@ -1595,7 +1612,7 @@ class InputBox extends Component {
                                     accept='image/*'
                                     onChange={this.handleAttachPhotoComplete}
                                 />
-                                {!Boolean(editMessageId) && !recording && (
+                                {!Boolean(editMessageId) && !recordingTime && (
                                     <AttachButton
                                         chatId={chatId}
                                         onAttachPhoto={this.handleAttachPhoto}
@@ -1610,7 +1627,7 @@ class InputBox extends Component {
                             </div>
                         </div>
                     </div>
-                    { recording && (
+                    { recordingTime && (
                         <div className='inputbox-cancel-record-button-background'>
                             <IconButton
                                 className='inputbox-cancel-record-button'
@@ -1624,7 +1641,7 @@ class InputBox extends Component {
                     )}
                     <div className='inputbox-send-button-background'>
                         <IconButton
-                            className={classNames('inputbox-send-button', {'inputbox-send-accent-button': recording || !recordingReady})}
+                            className={classNames('inputbox-send-button', {'inputbox-send-accent-button': recordingTime || !recordingReady})}
                             aria-label='Send'
                             size='small'
                             onClick={this.handleSubmit}>
@@ -1651,6 +1668,21 @@ class InputBox extends Component {
                     onSend={this.handleSendMedia}
                     onCancel={this.handleCancelEditMedia}
                 />
+                <Dialog
+                    transitionDuration={0}
+                    open={recordPermissionDenied}
+                    onClose={this.handleClosePermission}
+                    aria-labelledby='form-dialog-title'>
+                    <DialogTitle id='form-dialog-title'>{t('RecordDeniedTitle')}</DialogTitle>
+                    <DialogContent>
+                        <DialogContentText>{t('RecordDeniedDescription')}</DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={this.handleClosePermission} color='primary'>
+                            {t('Ok')}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             </div>
         );
     }

@@ -82,6 +82,7 @@ export const VERBOSITY_JS_MAX = 20;
 export const VERBOSITY_JS_MIN = 0;
 export const VERBOSITY_MAX = 20;
 export const VERBOSITY_MIN = 0;
+export const VOICENOTE_MIN_RECORD_DURATION = 1000;
 export const USERNAME_LENGTH_MIN = 5;
 export const REPLACE_PREFIX = '/telegram-react';
 export const WASM_FILE_NAME = 'c9b67fb28ccba3c5e1462687642001f9.wasm';

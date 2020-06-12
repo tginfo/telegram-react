@@ -73,7 +73,9 @@ i18n.use(initReactI18next).init({
                 PhotosTitle: 'Photos',
                 VideosTitle: 'Videos',
                 VoiceTitle: 'Voice messages',
-                UpdateDraftConfirmation: 'Are you sure you want to update draft?'
+                UpdateDraftConfirmation: 'Are you sure you want to update draft?',
+                RecordDeniedTitle: 'Permission Denied',
+                RecordDeniedDescription: 'You must allow your browser to access your microphone before being able to record voice notes. Click on the padlock icon next to the URL and then make sure you click Allow in the microphone settings to enable Telegram to access your microphone.',
             },
             emoji: {
                 Search: 'Search',
@@ -287,7 +289,7 @@ i18n.use(initReactI18next).init({
                 Archived: 'Archivados',
                 Saved: 'Guardados',
                 EditProfile: 'Editar perfil',
-                GeneralSettings: 'Ajustes generales'
+                GeneralSettings: 'General'
             },
             local: {
                 CopyMessageLink: 'Copiar enlace del mensaje',
@@ -299,10 +301,10 @@ i18n.use(initReactI18next).init({
                 YourAccountProtectedWithPassword: 'Tu cuenta está protegida con una contraseña adicional.',
                 DeletedMessage: 'Mensaje eliminado',
                 YourPhone: 'Tu teléfono',
-                SignInToTelegram: 'Registrarse en Telegram',
+                SignInToTelegram: 'Iniciar sesión en Telegram',
                 PhoneNumber: 'Número de teléfono',
                 Country: 'País',
-                KeepMeSignedIn: 'Mantenerme registrado',
+                KeepMeSignedIn: 'Recordarme',
                 StartText: 'Por favor, confirma el código de tu país y pon tu número de teléfono.',
                 Next: 'Siguiente',
                 InvalidPhoneNumber: 'Número de teléfono inválido. Por favor, revisa el número y reinténtalo.',
