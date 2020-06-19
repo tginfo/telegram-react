@@ -9,6 +9,10 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { withTranslation } from 'react-i18next';
 import classNames from 'classnames';
+import Animator from '../../Utils/Animatior';
+import { clamp, getFirstLetter, throttle } from '../../Utils/Common';
+import AppStore from '../../Stores/ApplicationStore';
+import CacheStore from '../../Stores/CacheStore';
 import FilterStore from '../../Stores/FilterStore';
 import TdLibController from '../../Controllers/TdLibController';
 import './Filters.css';
@@ -21,26 +25,67 @@ class Filters extends React.Component {
         this.filtersRef = React.createRef();
         this.filterSelectionRef = React.createRef();
 
+        const { isSmallWidth } = AppStore;
+        const { filters, chatList } = FilterStore;
+
         this.state = {
-            filters: FilterStore.filters,
-            chatList: FilterStore.chatList
-        }
+            isSmallWidth,
+            filters,
+            chatList
+        };
+
+        this.onWindowResize = throttle(this.onWindowResize, 250);
     }
 
     componentDidMount() {
-        FilterStore.on('updateChatFilters', this.onUpdateChatFilters);
+        window.addEventListener('resize', this.onWindowResize);
+        AppStore.on('clientUpdateCacheLoaded', this.onClientUpdateCacheLoaded);
+        AppStore.on('clientUpdatePageWidth', this.onClientUpdatePageWidth);
         FilterStore.on('clientUpdateChatList', this.onClientUpdateChatList);
+        FilterStore.on('updateChatFilters', this.onUpdateChatFilters);
 
         this.setSelection();
     }
 
     componentWillUnmount() {
-        FilterStore.off('updateChatFilters', this.onUpdateChatFilters);
+        window.removeEventListener('resize', this.onWindowResize);
+        AppStore.off('clientUpdateCacheLoaded', this.onClientUpdateCacheLoaded);
+        AppStore.off('clientUpdatePageWidth', this.onClientUpdatePageWidth);
         FilterStore.off('clientUpdateChatList', this.onClientUpdateChatList);
+        FilterStore.off('updateChatFilters', this.onUpdateChatFilters);
     }
 
-    setSelection() {
-        const { chatList, filters } = this.state;
+    onClientUpdateCacheLoaded = update => {
+        const { filters } = this.state;
+        if (filters) return;
+
+        const { filters: cachedFilters } = CacheStore;
+        if (!cachedFilters) return;
+
+        this.setState({
+            filters: cachedFilters
+        }, () => {
+            this.setSelection(false);
+        });
+    };
+
+    onWindowResize = event => {
+        this.setSelection(false);
+    };
+
+    onClientUpdatePageWidth = update => {
+        const { isSmallWidth } = AppStore;
+        this.setState({
+            isSmallWidth
+        }, () => {
+            this.setSelection(false);
+        });
+    };
+
+    setSelection(transition = true) {
+        const { chatList, filters, isSmallWidth } = this.state;
+
+        const scroll = this.filtersRef.current;
 
         let item = null;
         let left = 9;
@@ -48,7 +93,7 @@ class Filters extends React.Component {
             const main = this.filterRef.get('chatListMain');
             if (main){
                 item = main;
-                left += 7;
+                left += isSmallWidth ? 0 : 7;
             }
         } else if (chatList['@type'] === 'chatListFilter') {
             const main = this.filterRef.get('chatListMain');
@@ -59,7 +104,7 @@ class Filters extends React.Component {
                 const filter = this.filterRef.get('chatListFilter_id=' + filters[i].id);
                 if (filters[i].id === chatList.chat_filter_id) {
                     item = filter;
-                    left += 7;
+                    left += isSmallWidth ? 0 : 7;
                     break;
                 } else {
                     left += filter.scrollWidth;
@@ -70,11 +115,33 @@ class Filters extends React.Component {
 
         const filterSelection = this.filterSelectionRef.current;
         if (filterSelection) {
-            filterSelection.style.cssText = `left: ${left}px; width: ${item.scrollWidth - 14}px`;
+            const transitionStyle = transition ? 'transition: left 0.25s ease, width 0.25s ease' : null;
+            filterSelection.style.cssText = `left: ${left}px; width: ${item.scrollWidth - 14}px; ${transitionStyle}`;
         }
 
-        if (item){
-            item.scrollIntoView();
+        if (item && transition){
+            const { animator } = this;
+
+            if (animator) {
+                animator.stop();
+            }
+
+            this.animator = new Animator(250, [
+                {
+                    from: scroll.scrollLeft,
+                    to: clamp(left - scroll.offsetWidth / 2 + item.offsetWidth / 2, 0, scroll.scrollWidth - scroll.offsetWidth),
+                    func: left => (scroll.scrollLeft = left)
+                }
+            ]);
+
+            setTimeout(() => {
+                if (!this.animator) return;
+
+                this.animator.start();
+            }, 0);
+
+
+            // item.scrollIntoView();
         }
     }
 
@@ -131,21 +198,38 @@ class Filters extends React.Component {
             return;
         }
 
-        event.currentTarget.scrollLeft += event.deltaY ;
+        event.currentTarget.scrollLeft += event.deltaY;
         event.stopPropagation();
     };
 
     render() {
         const { t } = this.props;
-        const { filters, chatList } = this.state;
+        const { filters, chatList, isSmallWidth } = this.state;
+
+        // console.log('[cm] filters.render', filters);
+
         if (!filters) return null;
         if (!filters.length) return null;
 
         this.filterRef = new Map();
         return (
             <div ref={this.filtersRef} className='filters' onWheel={this.handleWheel}>
-                <div ref={r => this.filterRef.set('chatListMain', r)} className={classNames('filter', { 'item-selected': chatList['@type'] === 'chatListMain'})} onMouseDown={this.handleMainClick}>{t('FilterAllChats')}</div>
-                {filters.map(x => <div ref={r => this.filterRef.set('chatListFilter_id=' + x.id, r)} className={classNames('filter', { 'item-selected': chatList.chat_filter_id === x.id})} key={x.id} onMouseDown={e => this.handleFilterClick(e, x.id)}>{x.title}</div>)}
+                <div
+                    ref={r => this.filterRef.set('chatListMain', r)}
+                    className={classNames('filter', { 'item-selected': chatList['@type'] === 'chatListMain'})}
+                    onMouseDown={this.handleMainClick}
+                    title={isSmallWidth ? t('FilterAllChats') : null}>
+                    {isSmallWidth ? getFirstLetter(t('FilterAllChats')) : t('FilterAllChats')}
+                </div>
+                {filters.map(x => (
+                    <div
+                        key={x.id}
+                        ref={r => this.filterRef.set('chatListFilter_id=' + x.id, r)}
+                        className={classNames('filter', { 'item-selected': chatList.chat_filter_id === x.id})}
+                        onMouseDown={e => this.handleFilterClick(e, x.id)}
+                        title={isSmallWidth ? x.title : null}>
+                        {isSmallWidth ? getFirstLetter(x.title) : x.title}
+                    </div>))}
                 <div ref={this.filterSelectionRef} className='filter-selection'/>
             </div>
         );
