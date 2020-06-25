@@ -7,10 +7,13 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
+import { compose } from '../../../Utils/HOC';
+import { withSnackbar } from 'notistack';
 import { withTranslation } from 'react-i18next';
 import IconButton from '@material-ui/core/IconButton';
 import TextField from '@material-ui/core/TextField';
 import AddIcon from '../../../Assets/Icons/Add';
+import CloseIcon from '../../../Assets/Icons/Close';
 import ContactsIcon from '../../../Assets/Icons/NewPrivate';
 import NonContactsIcon from '../../../Assets/Icons/NonContacts';
 import GroupsIcon from '../../../Assets/Icons/NewGroup';
@@ -27,7 +30,9 @@ import FilterChat from '../../Tile/FilterChat';
 import FilterText from '../../Tile/FilterText';
 import SectionHeader from '../SectionHeader';
 import SidebarPage from '../SidebarPage';
-import { FILTER_TITLE_MAX_LENGTH } from '../../../Constants';
+import { isFilterValid } from '../../../Utils/Filter';
+import { CHAT_SLICE_LIMIT, FILTER_TITLE_MAX_LENGTH, NOTIFICATION_AUTO_HIDE_DURATION_MS } from '../../../Constants';
+import TdLibController from '../../../Controllers/TdLibController';
 import './CreateFilter.css';
 
 const Lottie = React.lazy(() => import('../../Viewer/Lottie'));
@@ -45,7 +50,11 @@ class CreateFilter extends React.Component {
             data: null,
             openFilterChats: false,
             mode: null,
-            title: ''
+            title: '',
+            error: false,
+            shook: false,
+            chats: [],
+            limit: 0
         }
     }
 
@@ -95,7 +104,25 @@ class CreateFilter extends React.Component {
         const { onDone } = this.props;
         const { editFilter } = this.state;
 
-        editFilter.title = this.titleRef.current.value;
+        const title = this.titleRef.current.value.trim();
+        if (!title) {
+            this.titleRef.current.focus();
+            this.setState({
+                error: true
+            })
+            return;
+        } else {
+            this.setState({
+                error: false
+            })
+        }
+
+        editFilter.title = title;
+
+        if (!isFilterValid(editFilter)) {
+            this.handleScheduledAction('Please choose at least one chat for this folder.');
+            return;
+        }
 
         onDone && onDone(editFilter);
     };
@@ -259,10 +286,20 @@ class CreateFilter extends React.Component {
         })
     };
 
-    handleOpenFilterChats = mode => {
+    handleOpenFilterChats = async mode => {
+        const result = await TdLibController.send({
+            '@type': 'getChats',
+            chat_list: { '@type': 'chatListMain' },
+            offset_order: '9223372036854775807',
+            offset_chat_id: 0,
+            limit: 1000
+        });
+
         this.setState({
             openFilterChats: true,
-            mode
+            mode,
+            chats: result.chat_ids,
+            limit: CHAT_SLICE_LIMIT
         })
     };
 
@@ -354,6 +391,23 @@ class CreateFilter extends React.Component {
                 newEditFilter = { ...editFilter, include_channels: !editFilter.include_channels };
                 break;
             }
+            case 'included_chat_ids': {
+                let included, excluded;
+                if (editFilter.included_chat_ids.includes(value)) {
+                    included = editFilter.included_chat_ids.filter(x => x !== value);
+                    excluded = editFilter.excluded_chat_ids;
+                } else {
+                    included = [ ...editFilter.included_chat_ids, value ];
+                    excluded = editFilter.excluded_chat_ids.filter(x => x !== value);
+                }
+
+                newEditFilter = {
+                    ...editFilter,
+                    included_chat_ids: included,
+                    excluded_chat_ids: excluded
+                };
+                break;
+            }
             case 'exclude_muted': {
                 newEditFilter = { ...editFilter, exclude_muted: !editFilter.exclude_muted };
                 break;
@@ -366,8 +420,27 @@ class CreateFilter extends React.Component {
                 newEditFilter = { ...editFilter, exclude_archived: !editFilter.exclude_archived };
                 break;
             }
+            case 'excluded_chat_ids': {
+                let included, excluded;
+                if (editFilter.excluded_chat_ids.includes(value)) {
+                    excluded = editFilter.excluded_chat_ids.filter(x => x !== value);
+                    included = editFilter.included_chat_ids;
+                } else {
+                    excluded = [ ...editFilter.excluded_chat_ids, value ];
+                    included = editFilter.included_chat_ids.filter(x => x !== value);
+                }
+
+                newEditFilter = {
+                    ...editFilter,
+                    included_chat_ids: included,
+                    excluded_chat_ids: excluded
+                };
+
+                break;
+            }
         }
 
+        // console.log('[f] onChange', type, value, newEditFilter);
         if (!newEditFilter) return;
 
         this.setState({
@@ -383,11 +456,39 @@ class CreateFilter extends React.Component {
         });
     }
 
+    handleScroll = event => {
+        const scroll = event.target;
+        if (scroll.scrollTop + scroll.offsetHeight >= scroll.scrollHeight) {
+            this.setState({
+                limit: this.state.limit + CHAT_SLICE_LIMIT
+            })
+        }
+    };
+
+    handleScheduledAction = message => {
+        const { enqueueSnackbar, closeSnackbar } = this.props;
+
+        const snackKey = enqueueSnackbar(message, {
+            autoHideDuration: NOTIFICATION_AUTO_HIDE_DURATION_MS,
+            preventDuplicate: true,
+            action: [
+                <IconButton
+                    key='close'
+                    aria-label='Close'
+                    color='inherit'
+                    className='notification-close-button'
+                    onClick={() => closeSnackbar(snackKey)}>
+                    <CloseIcon />
+                </IconButton>
+            ]
+        });
+    };
+
     render() {
         const { t, filter, id, onClose } = this.props;
         if (!filter) return null;
 
-        const { editFilter, data, openFilterChats, mode, title } = this.state;
+        const { editFilter, data, openFilterChats, mode, chats, limit, title, error, shook } = this.state;
 
         const {
             include_contacts,
@@ -449,6 +550,7 @@ class CreateFilter extends React.Component {
                             fullWidth
                             label={t('FilterNameHint')}
                             value={title}
+                            error={error}
                             onChange={this.handleTitleChange}
                         />
                     </div>
@@ -476,7 +578,7 @@ class CreateFilter extends React.Component {
                     </div>
                 </div>
                 <SidebarPage open={openFilterChats} onClose={this.handleCloseFilterChats}>
-                    <EditFilterChats filter={editFilter} mode={mode} onChange={this.handleChange}/>
+                    <EditFilterChats filter={editFilter} mode={mode} chats={chats} limit={limit} onChange={this.handleChange} onScroll={this.handleScroll}/>
                 </SidebarPage>
             </>
         );
@@ -491,4 +593,9 @@ CreateFilter.propTypes = {
     onClose: PropTypes.func
 };
 
-export default withTranslation()(CreateFilter);
+const enhance = compose(
+    withTranslation(),
+    withSnackbar,
+);
+
+export default enhance(CreateFilter);
