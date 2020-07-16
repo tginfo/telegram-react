@@ -35,6 +35,27 @@ import MessageStore from '../Stores/MessageStore';
 import UserStore from '../Stores/UserStore';
 import TdLibController from '../Controllers/TdLibController';
 
+export function hasServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        const { controller } = navigator.serviceWorker;
+        if (!controller) console.log('[SW] no running SW');
+
+        return !!controller;
+    }
+
+    return false;
+}
+
+export async function getArrayBuffer(blob) {
+    return new Promise((resolve) => {
+        let fr = new FileReader();
+        fr.onload = () => {
+            resolve(fr.result);
+        };
+        fr.readAsArrayBuffer(blob);
+    })
+}
+
 function getSizeString(size) {
     if (!size) return `0 B`;
 
@@ -781,7 +802,7 @@ function loadVideoContent(store, video, message, useFileSize = true) {
     const blob = FileStore.getBlob(id);
     if (blob) return;
 
-    if (supports_streaming && TdLibController.streaming) return;
+    if (supports_streaming && TdLibController.streaming && hasServiceWorker()) return;
 
     const chatId = message ? message.chat_id : 0;
     const messageId = message ? message.id : 0;
@@ -1460,39 +1481,39 @@ function getMediaPreviewFile(chatId, messageId) {
 }
 
 function getViewerFile(media, size) {
-    if (!size) return [0, 0, null, ''];
+    if (!size) return [0, 0, null, '', false];
 
     switch (media['@type']) {
         case 'animation': {
-            return [media.width, media.height, media.animation, media.mime_type];
+            return [media.width, media.height, media.animation, media.mime_type, false];
         }
         case 'photo': {
             const photoSize = getSize(media.sizes, size);
             if (photoSize) {
-                return [photoSize.width, photoSize.height, photoSize.photo, ''];
+                return [photoSize.width, photoSize.height, photoSize.photo, '', false];
             }
             break;
         }
         case 'document': {
-            return [50, 50, document.document, document.mime_type];
+            return [50, 50, document.document, document.mime_type, false];
         }
         case 'video': {
-            return [media.width, media.height, media.video, media.mime_type];
+            return [media.width, media.height, media.video, media.mime_type, media.supports_streaming && TdLibController.streaming && hasServiceWorker()];
         }
         default: {
         }
     }
 
-    return [0, 0, null, ''];
+    return [0, 0, null, '', false];
 }
 
 function getMediaFile(chatId, messageId, size) {
-    if (!size) return [0, 0, null];
+    if (!size) return [0, 0, null, '', false];
     const message = MessageStore.get(chatId, messageId);
-    if (!message) return [0, 0, null, ''];
+    if (!message) return [0, 0, null, '', false];
 
     const { content } = message;
-    if (!content) return [0, 0, null, ''];
+    if (!content) return [0, 0, null, '', false];
 
     switch (content['@type']) {
         case 'messageAnimation': {
@@ -1558,7 +1579,7 @@ function getMediaFile(chatId, messageId, size) {
 
                 if (video) {
                     const { width, height, video: file, mime_type, supports_streaming } = video;
-                    return [width, height, file, mime_type, supports_streaming && TdLibController.streaming];
+                    return [width, height, file, mime_type, supports_streaming && TdLibController.streaming && hasServiceWorker()];
                 }
             }
             break;
@@ -1567,7 +1588,7 @@ function getMediaFile(chatId, messageId, size) {
             const { video } = content;
             if (video) {
                 const { width, height, video: file, mime_type, supports_streaming } = video;
-                return [width, height, file, mime_type, supports_streaming && TdLibController.streaming];
+                return [width, height, file, mime_type, supports_streaming && TdLibController.streaming && hasServiceWorker()];
             }
             break;
         }

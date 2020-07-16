@@ -37,9 +37,9 @@ import {
     saveMedia
 } from '../../Utils/File';
 import {
+    canMessageBeDeleted,
     filterDuplicateMessages,
     isAnimationMessage,
-    isLottieMessage,
     isMediaContent,
     isVideoMessage
 } from '../../Utils/Message';
@@ -60,7 +60,6 @@ class MediaViewer extends React.Component {
         const { chatId, messageId } = this.props;
 
         this.state = {
-            speed: 1,
             background: 'media-viewer-default',
             prevChatId: chatId,
             prevMessageId: messageId,
@@ -81,7 +80,6 @@ class MediaViewer extends React.Component {
             firstSliceLoaded,
             hasNextMedia,
             hasPreviousMedia,
-            speed,
             totalCount
         } = this.state;
 
@@ -121,10 +119,6 @@ class MediaViewer extends React.Component {
             return true;
         }
 
-        if (nextState.speed !== speed) {
-            return true;
-        }
-
         return false;
     }
 
@@ -145,16 +139,35 @@ class MediaViewer extends React.Component {
     }
 
     onKeyDown = event => {
-        if (event.keyCode === 27) {
-            if (modalManager.modals.length > 0) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        const { chatId } = this.props;
+        const { currentMessageId } = this.state;
+
+        const { key } = event;
+        switch (key) {
+            case 'Escape': {
+                if (modalManager.modals.length > 0) {
+                    return;
+                }
+
+                this.handleClose();
                 return;
             }
+            case 'ArrowLeft': {
+                this.handlePrevious();
+                return;
+            }
+            case 'ArrowRight': {
+                this.handleNext();
+                return;
+            }
+        }
 
-            this.handleClose();
-        } else if (event.keyCode === 39) {
-            this.handleNext();
-        } else if (event.keyCode === 37) {
-            this.handlePrevious();
+        const isVideo = isVideoMessage(chatId, currentMessageId);
+        if (isVideo) {
+            TdLibController.clientUpdate({ '@type': 'clientUpdateMediaShortcut', event });
         }
     };
 
@@ -729,6 +742,19 @@ class MediaViewer extends React.Component {
         }
     };
 
+    handleWrapperClick = event => {
+        const { mouseDownTarget } = this;
+        this.mouseDownTarget = null;
+
+        if (event.currentTarget !== mouseDownTarget) return;
+
+        this.handleClose();
+    };
+
+    handleWrapperMouseDown = event => {
+        this.mouseDownTarget = event.currentTarget;
+    }
+
     render() {
         const { chatId, t } = this.props;
         const {
@@ -739,7 +765,6 @@ class MediaViewer extends React.Component {
             firstSliceLoaded,
             hasNextMedia,
             hasPreviousMedia,
-            speed,
             totalCount
         } = this.state;
 
@@ -750,9 +775,9 @@ class MediaViewer extends React.Component {
         const maxCount = Math.max(this.history.length, totalCount);
 
         const message = MessageStore.get(chatId, currentMessageId);
-        const { can_be_deleted_for_all_users, can_be_deleted_only_for_self } = message;
+        const { can_be_deleted_for_all_users } = message;
 
-        const canBeDeleted = can_be_deleted_for_all_users || can_be_deleted_only_for_self;
+        const canBeDeleted = canMessageBeDeleted(chatId, currentMessageId);
         const canBeForwarded = this.canBeForwarded(chatId, currentMessageId);
 
         let deleteConfirmationContent = '';
@@ -802,8 +827,6 @@ class MediaViewer extends React.Component {
             title = t('AttachVideo');
         } else if (isAnimationMessage(chatId, currentMessageId)) {
             title = t('AttachGif');
-        } else if (isLottieMessage(chatId, currentMessageId)) {
-            title = '';
         }
 
         return (
@@ -828,7 +851,7 @@ class MediaViewer extends React.Component {
                         <CloseIcon />
                     </MediaViewerFooterButton>
                 </div>
-                <div className='media-viewer-wrapper' onClick={this.handlePrevious}>
+                <div className='media-viewer-wrapper' onMouseDown={this.handleWrapperMouseDown} onClick={this.handleWrapperClick}>
                     <div className='media-viewer-left-column'>
                         <MediaViewerButton disabled={!hasPreviousMedia} grow onClick={this.handlePrevious}>
                             <NavigateBeforeIcon />

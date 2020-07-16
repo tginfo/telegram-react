@@ -25,6 +25,7 @@ import { cancelPreloadIVMediaViewerContent, getViewerFile, preloadIVMediaViewerC
 import { getInputMediaContent } from '../../Utils/Media';
 import { forward, setInstantViewViewerContent } from '../../Actions/Client';
 import { modalManager } from '../../Utils/Modal';
+import TdLibController from '../../Controllers/TdLibController';
 import './InstantViewMediaViewer.css';
 
 class InstantViewMediaViewer extends React.Component {
@@ -44,6 +45,7 @@ class InstantViewMediaViewer extends React.Component {
     componentDidMount() {
         this.loadContent();
 
+        // setTimeout(() => KeyboardManager.add(this.keyboardHandler), 0);
         KeyboardManager.add(this.keyboardHandler);
     }
 
@@ -52,16 +54,41 @@ class InstantViewMediaViewer extends React.Component {
     }
 
     onKeyDown = event => {
-        if (event.keyCode === 27) {
-            if (modalManager.modals.length > 0) {
+        event.stopPropagation();
+        event.preventDefault();
+
+
+        const { index, blocks } = this.state;
+        if (!blocks) return null;
+        if (index === -1) return null;
+
+        const block = blocks[index];
+        const media = getBlockMedia(block);
+        if (!media) return;
+
+        const { key } = event;
+        switch (key) {
+            case 'Escape': {
+                if (modalManager.modals.length > 0) {
+                    return;
+                }
+
+                this.handleClose();
                 return;
             }
+            case 'ArrowLeft': {
+                this.handlePrevious();
+                return;
+            }
+            case 'ArrowRight': {
+                this.handleNext();
+                return;
+            }
+        }
 
-            this.handleClose();
-        } else if (event.keyCode === 39) {
-            this.handlePrevious();
-        } else if (event.keyCode === 37) {
-            this.handleNext();
+        const isVideo = media['@type'] === 'video';
+        if (isVideo) {
+            TdLibController.clientUpdate({ '@type': 'clientUpdateMediaShortcut', event });
         }
     };
 

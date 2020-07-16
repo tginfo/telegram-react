@@ -23,6 +23,7 @@ import { getSrc } from '../../Utils/File';
 import { openChat } from '../../Actions/Client';
 import { getDurationString } from '../../Utils/Common';
 import { getDate, getDateHint, getMediaTitle, hasAudio } from '../../Utils/Message';
+import { setFileOptions } from '../../registerServiceWorker';
 import { PLAYER_PLAYBACKRATE_FAST, PLAYER_PLAYBACKRATE_NORMAL, PLAYER_STARTTIME } from '../../Constants';
 import AppStore from '../../Stores/ApplicationStore';
 import FileStore from '../../Stores/FileStore';
@@ -282,6 +283,8 @@ class HeaderPlayer extends React.Component {
         if (!content) return;
         if (chatId !== chat_id || messageId !== id) return;
 
+        const { streaming } = TdLibController;
+
         switch (content['@type']) {
             case 'messageText': {
                 const { web_page } = content;
@@ -289,7 +292,9 @@ class HeaderPlayer extends React.Component {
                     const { audio, voice_note, video_note } = web_page;
 
                     if (audio) {
-                        const file = audio.audio;
+                        if (streaming) return;
+
+                        const { audio: file } = audio;
                         if (file) {
                             this.startPlayingFile(message);
                         }
@@ -315,7 +320,9 @@ class HeaderPlayer extends React.Component {
             case 'messageAudio': {
                 const { audio } = content;
                 if (audio) {
-                    const file = audio.audio;
+                    if (streaming) return;
+
+                    const { audio: file } = audio;
                     if (file) {
                         this.startPlayingFile(message);
                     }
@@ -456,9 +463,15 @@ class HeaderPlayer extends React.Component {
                 const { audio, voice_note, video_note, web_page } = content;
 
                 if (audio) {
-                    const file = audio.audio;
+                    const { audio: file } = audio;
                     if (file) {
-                        return getSrc(file);
+                        let src = getSrc(file);
+                        if (!src && TdLibController.streaming) {
+                            src = `/streaming/file_id=${file.id}`;
+                            setFileOptions(src, { fileId: file.id, size: file.size, mimeType: audio.mime_type });
+                        }
+
+                        return src;
                     }
                 }
 
