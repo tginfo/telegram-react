@@ -30,7 +30,7 @@ jobs:
     - name: Installing dependencies
       run: npm ci
     - name: Copying TDWeb files
-      if: env.CUSTOM_TDWEB == "true"
+      if: {{ env.CUSTOM_TDWEB == "true" }}
       run: |
         rm node_modules/tdweb/dist/*
         cp public/*.worker.js node_modules/tdweb/dist/
