@@ -9,6 +9,8 @@ jobs:
   build:
     name: "Build master branch"
     runs-on: ubuntu-latest
+    env:
+      CUSTOM_TDWEB: "false"
 
     steps:
     - name: Setup Node.js 12.x
@@ -28,6 +30,7 @@ jobs:
     - name: Installing dependencies
       run: npm ci
     - name: Copying TDWeb files
+      if: env.CUSTOM_TDWEB == "true"
       run: |
         rm node_modules/tdweb/dist/*
         cp public/*.worker.js node_modules/tdweb/dist/
