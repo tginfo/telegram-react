@@ -139,29 +139,45 @@ class MediaViewer extends React.Component {
     }
 
     onKeyDown = event => {
-        event.stopPropagation();
-        event.preventDefault();
-
         const { chatId } = this.props;
         const { currentMessageId } = this.state;
+
+        if (modalManager.modals.length > 0) {
+            return;
+        }
+
+        if (event.isComposing) {
+            return;
+        }
+
+        const fullscreenElement = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement;
 
         const { key } = event;
         switch (key) {
             case 'Escape': {
-                if (modalManager.modals.length > 0) {
-                    return;
-                }
 
                 this.handleClose();
+                event.stopPropagation();
+                event.preventDefault();
                 return;
             }
             case 'ArrowLeft': {
-                this.handlePrevious();
-                return;
+                if (!fullscreenElement) {
+                    this.handlePrevious();
+                    event.stopPropagation();
+                    event.preventDefault();
+                    return;
+                }
+                break;
             }
             case 'ArrowRight': {
-                this.handleNext();
-                return;
+                if (!fullscreenElement) {
+                    this.handleNext();
+                    event.stopPropagation();
+                    event.preventDefault();
+                    return;
+                }
+                break;
             }
         }
 

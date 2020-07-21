@@ -54,9 +54,13 @@ class InstantViewMediaViewer extends React.Component {
     }
 
     onKeyDown = event => {
-        event.stopPropagation();
-        event.preventDefault();
+        if (modalManager.modals.length > 0) {
+            return;
+        }
 
+        if (event.isComposing) {
+            return;
+        }
 
         const { index, blocks } = this.state;
         if (!blocks) return null;
@@ -69,19 +73,21 @@ class InstantViewMediaViewer extends React.Component {
         const { key } = event;
         switch (key) {
             case 'Escape': {
-                if (modalManager.modals.length > 0) {
-                    return;
-                }
-
                 this.handleClose();
+                event.stopPropagation();
+                event.preventDefault();
                 return;
             }
             case 'ArrowLeft': {
                 this.handlePrevious();
+                event.stopPropagation();
+                event.preventDefault();
                 return;
             }
             case 'ArrowRight': {
                 this.handleNext();
+                event.stopPropagation();
+                event.preventDefault();
                 return;
             }
         }
