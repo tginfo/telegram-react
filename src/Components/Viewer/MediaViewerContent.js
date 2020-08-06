@@ -15,10 +15,11 @@ import Player from '../Player/Player';
 import { getMediaFile, getMediaMiniPreview, getMediaPreviewFile, getSrc } from '../../Utils/File';
 import { getText, isAnimationMessage, isVideoMessage } from '../../Utils/Message';
 import { isBlurredThumbnail } from '../../Utils/Media';
-import { setFileOptions } from '../../registerServiceWorker';
 import FileStore from '../../Stores/FileStore';
 import MessageStore from '../../Stores/MessageStore';
 import './MediaViewerContent.css';
+import TdLibController from '../../Controllers/TdLibController';
+import PlayerStore from '../../Stores/PlayerStore';
 
 class MediaViewerContent extends React.Component {
     constructor(props) {
@@ -47,10 +48,8 @@ class MediaViewerContent extends React.Component {
             let src = getSrc(file);
             let source = null;
             if (!src && supportsStreaming) {
-                const { video } = message.content;
-                if (video) {
-                    src = `/streaming/file_id=${file.id}`;
-                    setFileOptions(src, { fileId: file.id, size: file.size, mimeType: video.mime_type });
+                if (isVideoMessage(chatId, messageId)) {
+                    src = `/streaming/file?id=${file.id}&size=${file.size}&mime_type=${mimeType}`;
                 }
             }
 
@@ -87,6 +86,7 @@ class MediaViewerContent extends React.Component {
         FileStore.on('clientUpdateVideoThumbnailBlob', this.onClientUpdateMediaThumbnailBlob);
         FileStore.on('clientUpdateAnimationThumbnailBlob', this.onClientUpdateMediaThumbnailBlob);
         MessageStore.on('updateMessageContent', this.onUpdateMessageContent);
+        PlayerStore.on('clientUpdatePictureInPicture', this.onClientUpdatePictureInPicture);
     }
 
     componentWillUnmount() {
@@ -96,7 +96,21 @@ class MediaViewerContent extends React.Component {
         FileStore.off('clientUpdateVideoThumbnailBlob', this.onClientUpdateMediaThumbnailBlob);
         FileStore.off('clientUpdateAnimationThumbnailBlob', this.onClientUpdateMediaThumbnailBlob);
         MessageStore.off('updateMessageContent', this.onUpdateMessageContent);
+        PlayerStore.off('clientUpdatePictureInPicture', this.onClientUpdatePictureInPicture);
     }
+
+    onClientUpdatePictureInPicture = update => {
+        const { videoInfo } = update;
+        if (!videoInfo) return;
+
+        const { file } = this.state;
+        if (file.id !== videoInfo.fileId) return;
+
+        TdLibController.clientUpdate({
+            '@type': 'clientUpdateMediaViewerContent',
+            content: null
+        });
+    };
 
     componentDidUpdate(prevProps, prevState, snapshot) {
         const { src } = this.state;
@@ -113,13 +127,23 @@ class MediaViewerContent extends React.Component {
         const { chatId, messageId, size } = this.props;
 
         if (chatId === update.chatId && messageId === update.messageId) {
-            const [width, height, file, mimeType, supportsStreaming] = getMediaFile(chatId, messageId, size);
+            let [width, height, file, mimeType, supportsStreaming] = getMediaFile(chatId, messageId, size);
+
+            file = FileStore.get(file.id) || file;
+            let src = getSrc(file);
+            let source = null;
+            if (!src && supportsStreaming) {
+                if (isVideoMessage(chatId, messageId)) {
+                    src = `/streaming/file?id=${file.id}&size=${file.size}&mime_type=${mimeType}`;
+                }
+            }
 
             this.setState({
                 width,
                 height,
                 file,
-                src: getSrc(file),
+                src,
+                source,
                 supportsStreaming,
                 mimeType
             });
@@ -151,10 +175,8 @@ class MediaViewerContent extends React.Component {
             let src = getSrc(file);
             let source = null;
             if (!src && supportsStreaming) {
-                const { video } = message.content;
-                if (video) {
-                    src = `/streaming/file_id=${file.id}`;
-                    setFileOptions(src, { fileId: file.id, size: file.size, mimeType: video.mime_type });
+                if (isVideoMessage(chatId, messageId)) {
+                    src = `/streaming/file?id=${file.id}&size=${file.size}&mime_type=${mimeType}`;
                 }
             }
 
@@ -222,6 +244,7 @@ class MediaViewerContent extends React.Component {
 
         let content = null;
         const source = src ? <source src={src} type={mimeType}/> : null;
+
         if (isVideo) {
             content = (
                 <div className='media-viewer-content-wrapper'>
@@ -261,6 +284,20 @@ class MediaViewerContent extends React.Component {
                 </div>
             );
         } else if (isAnimation) {
+            // const message = MessageStore.get(chatId, messageId);
+            //
+            // content = (
+            //     <Animation
+            //         type='preview'
+            //         stretch={true}
+            //         displaySize={ANIMATION_PREVIEW_DISPLAY_SIZE}
+            //         animation={message.content.animation || message.content.web_page.animation}
+            //         onClick={this.handleContentClick}
+            //         showProgress={false}
+            //         style={{ borderRadius: 0 }}
+            //         />
+            // );
+
             content = (
                 <div className='media-viewer-content-wrapper'>
                     <video
@@ -278,25 +315,25 @@ class MediaViewerContent extends React.Component {
                         {source}
                     </video>
                     {!isPlaying &&
-                        ((thumbnailSrc || miniSrc) ? (
-                            <img
-                                className={classNames('media-viewer-content-video-thumbnail', {
-                                    'media-blurred': isBlurred
-                                })}
-                                src={thumbnailSrc || miniSrc}
-                                alt=''
-                                width={videoWidth}
-                                height={videoHeight}
-                            />
-                        ) : (
-                            <div
-                                className='media-viewer-content-video-thumbnail'
-                                style={{
-                                    width: videoWidth,
-                                    height: videoHeight
-                                }}
-                            />
-                        ))}
+                    ((thumbnailSrc || miniSrc) ? (
+                        <img
+                            className={classNames('media-viewer-content-video-thumbnail', {
+                                'media-blurred': isBlurred
+                            })}
+                            src={thumbnailSrc || miniSrc}
+                            alt=''
+                            width={videoWidth}
+                            height={videoHeight}
+                        />
+                    ) : (
+                        <div
+                            className='media-viewer-content-video-thumbnail'
+                            style={{
+                                width: videoWidth,
+                                height: videoHeight
+                            }}
+                        />
+                    ))}
                 </div>
             );
         } else {

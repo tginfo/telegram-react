@@ -5,19 +5,12 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-.audio-action {
-    margin-top: 2px;
-    font-size: 14px;
-    line-height: 19px;
-    color: var(--message-in-subtle-color);
-    user-select: none;
+.user-title {
     word-wrap: break-word;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: flex;
-}
-
-.message-out .audio-action {
-    color: var(--message-out-subtle-color);
+    flex-grow: 1;
+    align-items: center;
+    color: var(--dialog-color);
 }

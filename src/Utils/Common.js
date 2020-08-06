@@ -154,6 +154,10 @@ function getSize(sizes, dimension) {
     let diff = Math.abs(dimension - (useWidth ? sizes[0].width : sizes[0].height));
     let index = 0;
     for (let i = 1; i < sizes.length; i++) {
+        if (!sizes[i]) {
+            continue;
+        }
+
         if (sizes[i].type === 'i' && !sizes[i].photo.local.is_downloading_completed) {
             continue;
         }
@@ -168,10 +172,10 @@ function getSize(sizes, dimension) {
     return sizes[index];
 }
 
-function getFitSize(size, max, increaseToMax = true) {
+function getFitSize(size, max, stretch = true) {
     if (!size) return { width: 0, height: 0 };
 
-    if (!increaseToMax) {
+    if (!stretch) {
         if (size.width < max && size.height < max) {
             return size;
         }
@@ -276,7 +280,7 @@ export function getFirstLetter(str) {
         }
     }
 
-    return '';
+    return [...str].length > 0 ? [...str][0] : '';
 }
 
 function getLetters(title) {
@@ -376,7 +380,11 @@ function clamp(item, first, last) {
     return item;
 }
 
-function getDurationString(secondsTotal) {
+function getDurationString(secondsTotal, duration, reverse) {
+    if (reverse && duration > 0) {
+        secondsTotal = Math.max(Math.floor(duration) - secondsTotal, 0);
+    }
+
     let hours = Math.floor(secondsTotal / 3600);
     let minutes = Math.floor((secondsTotal - hours * 3600) / 60);
     let seconds = secondsTotal - hours * 3600 - minutes * 60;
@@ -388,7 +396,7 @@ function getDurationString(secondsTotal) {
         seconds = '0' + seconds;
     }
 
-    return (hours > 0 ? hours + ':' : '') + minutes + ':' + seconds;
+    return (reverse ? '-': '') + (hours > 0 ? hours + ':' : '') + minutes + ':' + seconds;
 }
 
 export function getRandomInt(min, max) {

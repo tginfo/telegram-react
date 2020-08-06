@@ -7,10 +7,11 @@
 
 import EventEmitter from './EventEmitter';
 import { getSearchMessagesFilter, openMedia } from '../Utils/Message';
-import { PLAYER_PLAYBACKRATE_NORMAL, PLAYER_VOLUME_NORMAL } from '../Constants';
+import { getRandomInt } from '../Utils/Common';
+import { PLAYER_PLAYBACKRATE_MAX, PLAYER_PLAYBACKRATE_NORMAL, PLAYER_PRELOAD_MAX_SIZE, PLAYER_PRELOAD_PRIORITY, PLAYER_VOLUME_MAX, PLAYER_VOLUME_MIN, PLAYER_VOLUME_NORMAL } from '../Constants';
+import FileStore from './FileStore';
 import MessageStore from './MessageStore';
 import TdLibController from '../Controllers/TdLibController';
-import { getRandomInt } from '../Utils/Common';
 
 const RepeatEnum = Object.freeze({
     NONE: 'NONE',
@@ -24,25 +25,32 @@ class PlayerStore extends EventEmitter {
     constructor() {
         super();
 
-        const { playbackRate, volume } = this.loadPlayerSettings();
-
-        this.playbackRate = playbackRate;
-        this.volume = volume;
-        this.repeat = RepeatEnum.NONE;
-        this.shuffle = false;
+        const { playbackRate, audioPlaybackRate, volume } = this.loadPlayerSettings();
 
         this.reset();
+
+        this.playbackRate = playbackRate;
+        this.audioPlaybackRate = audioPlaybackRate;
+        this.volume = volume;
 
         this.addTdLibListener();
     }
 
     reset = () => {
+        this.playbackRate = PLAYER_PLAYBACKRATE_NORMAL;
+        this.audioPlaybackRate = PLAYER_PLAYBACKRATE_NORMAL;
+        this.volume = PLAYER_VOLUME_NORMAL;
+        this.repeat = RepeatEnum.NONE;
+        this.shuffle = false;
+
         this.playlist = null;
         this.message = null;
         this.time = null;
         this.videoStream = null;
         this.instantView = null;
         this.pageBlock = null;
+        this.pipParams = { left: document.documentElement.clientWidth - 300, top: document.documentElement.clientHeight - 300 };
+        this.times = new Map();
     };
 
     addTdLibListener = () => {
@@ -82,29 +90,37 @@ class PlayerStore extends EventEmitter {
     };
 
     loadPlayerSettings() {
-        const player = localStorage.getItem('player') || {};
+        const player = JSON.parse(localStorage.getItem('player')) || {};
 
-        let { playbackRate, volume } = player;
+        let { playbackRate, audioPlaybackRate, volume } = player;
+
+        playbackRate = +playbackRate;
+        audioPlaybackRate = +audioPlaybackRate;
+        volume = +volume;
 
         playbackRate =
-            playbackRate && Number(playbackRate) >= 1 && Number(playbackRate) <= 2
-                ? Number(playbackRate)
+            playbackRate >= PLAYER_PLAYBACKRATE_NORMAL && playbackRate <= PLAYER_PLAYBACKRATE_MAX
+                ? playbackRate
                 : PLAYER_PLAYBACKRATE_NORMAL;
-        volume = volume && Number(volume) >= 0 && Number(volume) <= 1 ? Number(volume) : PLAYER_VOLUME_NORMAL;
+        audioPlaybackRate =
+            audioPlaybackRate >= PLAYER_PLAYBACKRATE_NORMAL && audioPlaybackRate <= PLAYER_PLAYBACKRATE_MAX
+                ? audioPlaybackRate
+                : PLAYER_PLAYBACKRATE_NORMAL;
+        volume = volume >= PLAYER_VOLUME_MIN && volume <= PLAYER_VOLUME_MAX ? volume : PLAYER_VOLUME_NORMAL;
 
-        return { playbackRate, volume };
+        return { playbackRate, audioPlaybackRate, volume };
     }
 
     savePlayerSettings() {
-        const { volume, playbackRate } = this;
+        const { volume, playbackRate, audioPlaybackRate } = this;
 
-        localStorage.setItem('player', JSON.stringify({ volume, playbackRate }));
+        localStorage.setItem('player', JSON.stringify({ volume, playbackRate, audioPlaybackRate }));
     }
 
     onClientUpdate = update => {
         switch (update['@type']) {
             case 'clientUpdateMediaClose': {
-                this.reset();
+                // this.reset();
 
                 this.emit(update['@type'], update);
                 break;
@@ -116,7 +132,9 @@ class PlayerStore extends EventEmitter {
                 if (message) {
                     this.message = message;
                     this.emit(update['@type'], update);
-                    this.getPlaylist(chatId, messageId);
+                    this.getPlaylist(chatId, messageId, () => {
+                        // this.preloadNextMedia();
+                    });
 
                     return;
                 } else if (instantView && pageBlock) {
@@ -157,6 +175,16 @@ class PlayerStore extends EventEmitter {
                 const { playbackRate } = update;
 
                 this.playbackRate = playbackRate;
+
+                this.savePlayerSettings();
+
+                this.emit(update['@type'], update);
+                break;
+            }
+            case 'clientUpdateMediaAudioPlaybackRate': {
+                const { audioPlaybackRate } = update;
+
+                this.audioPlaybackRate = audioPlaybackRate;
 
                 this.savePlayerSettings();
 
@@ -229,12 +257,51 @@ class PlayerStore extends EventEmitter {
                 break;
             }
             case 'clientUpdateMediaTime': {
-                const { duration, currentTime, timestamp } = update;
+                const { chatId, messageId, duration, currentTime, buffered, timestamp } = update;
+
+                if (this.time && this.time.chatId === chatId && this.time.messageId === messageId) {
+                    this.time = {
+                        ...this.time,
+                        currentTime,
+                        duration,
+                        buffered,
+                        timestamp
+                    };
+                }
+
+                if (buffered && currentTime && duration) {
+                    for (let i = 0; i < buffered.length; i++) {
+                        const start = buffered.start(i);
+                        const end = buffered.end(i);
+                        if (start <= currentTime && currentTime <= end && currentTime + 30 < end) {
+                            this.preloadNextMedia();
+                            break;
+                        }
+                    }
+                }
+
+                this.emit(update['@type'], update);
+                break;
+            }
+            case 'clientUpdateMediaProgress': {
+                const { chatId, messageId, buffered } = update;
+
+                if (this.time && this.time.chatId === chatId && this.time.messageId === messageId) {
+                    this.time = { ...this.time, buffered };
+                }
+
+                this.emit(update['@type'], update);
+                break;
+            }
+            case 'clientUpdateMediaLoadedMetadata': {
+                const { chatId, messageId, duration, videoWidth, videoHeight } = update;
 
                 this.time = {
-                    currentTime: currentTime,
-                    duration: duration,
-                    timestamp: timestamp
+                    chatId,
+                    messageId,
+                    duration,
+                    videoWidth,
+                    videoHeight
                 };
 
                 this.emit(update['@type'], update);
@@ -274,8 +341,69 @@ class PlayerStore extends EventEmitter {
                 this.emit(update['@type'], update);
                 break;
             }
+            case 'clientUpdatePictureInPicture': {
+                this.emit(update['@type'], update);
+                break;
+            }
             default:
                 break;
+        }
+    };
+
+    preloadNextMedia = async () => {
+        if (!this.playlist) return;
+        if (!this.message) return;
+        if (this.repeat !== RepeatEnum.NONE) return;
+        if (this.shuffle) return;
+
+        const { chat_id, id } = this.message;
+        const { messages } = this.playlist;
+        if (!messages) return;
+
+        const index = messages.findIndex(x => x.chat_id === chat_id && x.id === id);
+        if (index === -1) return;
+
+        const nextIndex = index - 1;
+        if (nextIndex === -1) return;
+
+        const nextMessage = messages[nextIndex];
+        if (!nextMessage) return;
+
+        const { content } = nextMessage;
+        switch (content['@type']) {
+            case 'messageAudio': {
+                const { audio } = content;
+                if (!audio) return;
+
+                let { audio: file } = audio;
+                if (!file) return;
+
+                file = FileStore.get(file.id) || file;
+
+                const { id, local, expected_size } = file;
+
+                const { is_downloading_active, is_downloading_completed, download_offset, downloaded_prefix_size } = local;
+                if (is_downloading_completed) return;
+                if (is_downloading_active) return;
+
+                const offset = 0;
+                const limit = 3 * 1024 * 1024; //expected_size > PLAYER_PRELOAD_MAX_SIZE ? PLAYER_PRELOAD_MAX_SIZE : 0; //
+                if (download_offset <= offset && limit <= downloaded_prefix_size) return;
+
+                console.log('[cache] preload start', id, limit, expected_size);
+                await TdLibController.send({
+                    '@type': 'downloadFile',
+                    file_id: id,
+                    offset: 0,
+                    limit,
+                    priority: PLAYER_PRELOAD_PRIORITY,
+                    synchronous: true
+                });
+
+                console.log('[cache] preload stop', id, limit, expected_size);
+
+                break;
+            }
         }
     };
 
@@ -346,12 +474,27 @@ class PlayerStore extends EventEmitter {
         return false;
     };
 
-    getPlaylist = async (chatId, messageId) => {
+    getCurrentTime = (uniqueId) => {
+        return this.times.get(uniqueId) || { currentTime: 0, duration: 0 };
+    };
+
+    setCurrentTime = (uniqueId, info) => {
+        if (info.currentTime < 30) return;
+
+        this.times.set(uniqueId, info);
+    };
+
+    clearCurrentTime = (uniqueId) => {
+        this.times.delete(uniqueId);
+    };
+
+    getPlaylist = async (chatId, messageId, callback) => {
         const { playlist: currentPlaylist } = this;
 
         if (currentPlaylist) {
             const { messages } = currentPlaylist;
             if (messages && messages.findIndex(x => x.chat_id === chatId && x.id === messageId) !== -1) {
+                callback && callback();
                 return;
             }
         }
@@ -405,6 +548,8 @@ class PlayerStore extends EventEmitter {
             '@type': 'clientUpdateMediaPlaylist',
             playlist: this.playlist
         });
+
+        callback && callback();
     };
 }
 

@@ -16,7 +16,7 @@
 // This link also includes instructions on opting out of this behavior.
 
 import { arrayBufferToBase64, isAuthorizationReady } from './Utils/Common';
-import { OPTIMIZATIONS_FIRST_START } from './Constants';
+import { OPTIMIZATIONS_FIRST_START, PLAYER_STREAMING_PRIORITY } from './Constants';
 import ApplicationStore from './Stores/ApplicationStore';
 import NotificationStore from './Stores/NotificationStore';
 import TdLibController from './Controllers/TdLibController';
@@ -171,54 +171,95 @@ export async function update() {
     }
 }
 
-export function setFileOptions(url, options) {
-    if ('serviceWorker' in navigator) {
+const requests = [];
+window.requests = requests;
 
-        console.log('[SW] setFileOptions ', navigator.serviceWorker, navigator.serviceWorker.controller);
-        navigator.serviceWorker.controller.postMessage({
-            '@type': 'file',
-            url,
-            options
+async function processRequest(request) {
+    const { fileId, offset, limit, resolve, reject } = request;
+
+    try {
+        await TdLibController.send({
+            '@type': 'downloadFile',
+            file_id: fileId,
+            priority: PLAYER_STREAMING_PRIORITY,
+            offset,
+            limit,
+            synchronous: true
         });
+
+        const filePart = await TdLibController.send({
+            '@type': 'readFilePart',
+            file_id: fileId,
+            offset,
+            count: limit
+        });
+
+        const { data } = filePart;
+
+        resolve(data);
+    } catch (error) {
+        reject(error)
     }
 }
 
-navigator.serviceWorker.onmessage = async (e) => {
-    // console.log('[stream] client.onmessage', e.data);
+async function getFilePart(fileId, offset, limit) {
+    const promise = new Promise(async (resolve, reject) => {
 
-    switch (e.data['@type']) {
-        case 'getFile': {
-            const { fileId, offset, limit, size } = e.data;
+        requests.push({
+            fileId,
+            offset,
+            limit,
+            resolve,
+            reject
+        });
 
-            const l = offset + limit < size ? limit : (size - offset)
-
-            await TdLibController.send({
-                '@type': 'downloadFile',
-                file_id: fileId,
-                priority: 1,
-                offset,
-                limit: l,
-                synchronous: true
-            });
-
-            const filePart = await TdLibController.send({
-                '@type': 'readFilePart',
-                file_id: fileId,
-                offset,
-                count: l
-            });
-
-            // const buffer = await getArrayBuffer(filePart.data);
-
-            // console.log('[stream] client.onmessage buffer', fileId, offset, limit, filePart.data);
-            navigator.serviceWorker.controller.postMessage({
-                '@type': 'getFileResult',
-                fileId,
-                offset,
-                limit,
-                data: filePart.data
-            });
-            break;
+        if (requests.length > 1) {
+            return;
         }
-    }
-};
+
+        while (requests.length > 0) {
+            const request = requests[requests.length - 1];
+
+            await processRequest(request);
+
+            const index = requests.indexOf(request);
+            requests.splice(index, 1);
+        }
+    });
+
+    return await promise;
+}
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.onmessage = async (e) => {
+        // console.log('[stream] client.onmessage', e.data);
+
+        switch (e.data['@type']) {
+            case 'getFile': {
+                const { fileId, offset, limit, start, end } = e.data;
+
+                try {
+                    const data = await getFilePart(fileId, offset, limit);
+
+                    navigator.serviceWorker.controller.postMessage({
+                        '@type': 'getFileResult',
+                        fileId,
+                        offset,
+                        limit,
+                        data
+                    });
+                } catch (error) {
+
+                    navigator.serviceWorker.controller.postMessage({
+                        '@type': 'getFileError',
+                        fileId,
+                        offset,
+                        limit,
+                        error
+                    });
+                }
+                break;
+            }
+        }
+    };
+}

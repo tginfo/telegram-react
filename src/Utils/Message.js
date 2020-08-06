@@ -15,18 +15,20 @@ import { searchChat, setMediaViewerContent } from '../Actions/Client';
 import { getChatTitle, isMeChat } from './Chat';
 import { openUser } from './../Actions/Client';
 import { getFitSize, getPhotoSize, getSize } from './Common';
-import { download, saveOrDownload } from './File';
+import { download, saveOrDownload, supportsStreaming } from './File';
 import { getAudioTitle } from './Media';
 import { getDecodedUrl } from './Url';
 import { getServiceMessageContent } from './ServiceMessage';
 import { getUserFullName } from './User';
-import { LOCATION_HEIGHT, LOCATION_SCALE, LOCATION_WIDTH, LOCATION_ZOOM, PHOTO_DISPLAY_SIZE, PHOTO_SIZE } from '../Constants';
+import { LOCATION_HEIGHT, LOCATION_SCALE, LOCATION_WIDTH, LOCATION_ZOOM, PHOTO_DISPLAY_SIZE, PHOTO_SIZE, PLAYER_AUDIO_2X_MIN_DURATION } from '../Constants';
 import AppStore from '../Stores/ApplicationStore';
 import ChatStore from '../Stores/ChatStore';
 import FileStore from '../Stores/FileStore';
 import MessageStore from '../Stores/MessageStore';
+import PlayerStore from '../Stores/PlayerStore';
 import UserStore from '../Stores/UserStore';
 import TdLibController from '../Controllers/TdLibController';
+import { isEmptyText } from './InstantView';
 
 export function isMetaBubble(chatId, messageId) {
     const message = MessageStore.get(chatId, messageId);
@@ -336,7 +338,7 @@ function getText(message, meta, t = k => k) {
     let result = [];
 
     const { content } = message;
-    if (!content) return [...result, meta];
+    if (!content) return [meta];
 
     const { text, caption } = content;
 
@@ -753,7 +755,7 @@ function getMediaTitle(message, t = k => k) {
     return getAuthor(message, t);
 }
 
-function hasAudio(chatId, messageId) {
+export function hasVoice(chatId, messageId) {
     const message = MessageStore.get(chatId, messageId);
     if (!message) return false;
 
@@ -761,9 +763,9 @@ function hasAudio(chatId, messageId) {
     if (!content) return false;
 
     switch (content['@type']) {
-        case 'messageAudio': {
-            const { audio } = content;
-            if (audio) {
+        case 'messageVoiceNote': {
+            const { voice_note } = content;
+            if (voice_note) {
                 return true;
             }
 
@@ -772,8 +774,8 @@ function hasAudio(chatId, messageId) {
         case 'messageText': {
             const { web_page } = content;
             if (web_page) {
-                const { audio } = web_page;
-                if (audio) {
+                const { voice_note } = web_page;
+                if (voice_note) {
                     return true;
                 }
             }
@@ -783,6 +785,44 @@ function hasAudio(chatId, messageId) {
     }
 
     return false;
+}
+
+export function useAudioPlaybackRate(chatId, messageId) {
+    const audio = getMessageAudio(chatId, messageId);
+
+    return audio && audio.duration > PLAYER_AUDIO_2X_MIN_DURATION;
+}
+
+export function getMessageAudio(chatId, messageId) {
+    const message = MessageStore.get(chatId, messageId);
+    if (!message) return null;
+
+    const { content } = message;
+    if (!content) return null;
+
+    switch (content['@type']) {
+        case 'messageAudio': {
+            const { audio } = content;
+
+            return audio;
+        }
+        case 'messageText': {
+            const { web_page } = content;
+            if (web_page) {
+                const { audio } = web_page;
+
+                return audio;
+            }
+
+            break;
+        }
+    }
+
+    return null;
+}
+
+function hasAudio(chatId, messageId) {
+    return Boolean(getMessageAudio(chatId, messageId));
 }
 
 function hasVideoNote(chatId, messageId) {
@@ -938,15 +978,14 @@ function openAudio(audio, message, fileCancel) {
     if (!file) return;
 
     file = FileStore.get(file.id) || file;
-    const { streaming } = TdLibController;
-    if (fileCancel && file.local.is_downloading_active && !streaming) {
+    if (fileCancel && file.local.is_downloading_active && !supportsStreaming()) {
         FileStore.cancelGetRemoteFile(file.id, message);
         return;
     } else if (fileCancel && file.remote.is_uploading_active) {
         FileStore.cancelUploadFile(file.id, message);
         return;
     } else {
-        if (!streaming) {
+        if (!supportsStreaming()) {
             download(file, message, () => FileStore.updateAudioBlob(chat_id, id, file.id));
         }
     }
@@ -957,10 +996,16 @@ function openAudio(audio, message, fileCancel) {
         message_id: id
     });
 
+    const { remote } = file;
+    const { unique_id } = remote;
+    const { currentTime, duration } = PlayerStore.getCurrentTime(unique_id);
+
     TdLibController.clientUpdate({
         '@type': 'clientUpdateMediaActive',
         chatId: chat_id,
-        messageId: id
+        messageId: id,
+        currentTime,
+        duration
     });
 }
 
@@ -1163,7 +1208,7 @@ function openVideo(video, message, fileCancel) {
     if (!file) return;
 
     file = FileStore.get(file.id) || file;
-    if (fileCancel && file.local.is_downloading_active) {
+    if (fileCancel && file.local.is_downloading_active && !supportsStreaming()) {
         FileStore.cancelGetRemoteFile(file.id, message);
         return;
     } else if (fileCancel && file.remote.is_uploading_active) {
@@ -1209,10 +1254,16 @@ function openVideoNote(videoNote, message, fileCancel) {
         message_id: id
     });
 
+    const { remote } = file;
+    const { unique_id } = remote;
+    const { currentTime, duration } = PlayerStore.getCurrentTime(unique_id);
+
     TdLibController.clientUpdate({
         '@type': 'clientUpdateMediaActive',
         chatId: chat_id,
-        messageId: id
+        messageId: id,
+        currentTime,
+        duration
     });
 }
 
@@ -1242,10 +1293,16 @@ function openVoiceNote(voiceNote, message, fileCancel) {
         message_id: id
     });
 
+    const { remote } = file;
+    const { unique_id } = remote;
+    const { currentTime, duration } = PlayerStore.getCurrentTime(unique_id);
+
     TdLibController.clientUpdate({
         '@type': 'clientUpdateMediaActive',
         chatId: chat_id,
-        messageId: id
+        messageId: id,
+        currentTime,
+        duration
     });
 }
 
@@ -1329,34 +1386,42 @@ function openMedia(chatId, messageId, fileCancel = true) {
 
                 if (animation) {
                     openAnimation(animation, message, fileCancel);
+                    break;
                 }
 
                 if (audio) {
                     openAudio(audio, message, fileCancel);
+                    break;
                 }
 
                 if (document) {
                     openDocument(document, message, fileCancel);
+                    break;
                 }
 
                 if (sticker) {
                     openSticker(sticker, message, fileCancel);
+                    break;
                 }
 
                 if (video) {
                     openVideo(video, message, fileCancel);
+                    break;
                 }
 
                 if (video_note) {
                     openVideoNote(video_note, message, fileCancel);
+                    break;
                 }
 
                 if (voice_note) {
                     openVoiceNote(voice_note, message, fileCancel);
+                    break;
                 }
 
                 if (photo) {
                     openPhoto(photo, message, fileCancel);
+                    break;
                 }
             }
 
@@ -2472,41 +2537,60 @@ export function getMessageStyle(chatId, messageId) {
 
     switch (content['@type']) {
         case 'messageAnimation': {
-            const { animation } = content;
+            const { animation, caption } = content;
+            if (caption && caption.text) {
+                return { maxWidth: PHOTO_DISPLAY_SIZE };
+            }
             if (!animation) return null;
 
             const { width, height, thumbnail } = animation;
 
-            const size = { width, height } || thumbnail;
+            const size = thumbnail || { width, height };
             if (!size) return null;
 
-            const fitSize = getFitSize(size, PHOTO_DISPLAY_SIZE, false);
+            const fitSize = getFitSize(size, PHOTO_DISPLAY_SIZE, true);
             if (!fitSize) return null;
 
             return { width: fitSize.width };
         }
+        case 'messageGame': {
+            return { maxWidth : PHOTO_DISPLAY_SIZE + 10 + 9 * 2 };
+        }
         case 'messagePhoto': {
-            const { photo } = content;
+            const { photo, caption } = content;
+            if (caption && caption.text) {
+                return { maxWidth: PHOTO_DISPLAY_SIZE };
+            }
             if (!photo) return null;
 
             const size = getSize(photo.sizes, PHOTO_SIZE);
             if (!size) return null;
 
-            const fitSize = getFitSize(size, PHOTO_DISPLAY_SIZE, false);
+            const fitSize = getFitSize(size, PHOTO_DISPLAY_SIZE, true);
             if (!fitSize) return null;
 
             return { width: fitSize.width };
         }
+        case 'messageText': {
+            const { web_page } = content;
+            if (!web_page) return null;
+
+            return { maxWidth : PHOTO_DISPLAY_SIZE + 10 + 9 * 2 };
+        }
         case 'messageVideo': {
-            const { video } = content;
+            const { video, caption } = content;
+            if (caption && caption.text) {
+                return { maxWidth: PHOTO_DISPLAY_SIZE };
+            }
+
             if (!video) return null;
 
             const { thumbnail, width, height } = video;
 
-            const size = { width, height } || thumbnail;
+            const size = thumbnail || { width, height };
             if (!size) return null;
 
-            const fitSize = getFitSize(size, PHOTO_DISPLAY_SIZE);
+            const fitSize = getFitSize(size, PHOTO_DISPLAY_SIZE, true);
             if (!fitSize) return null;
 
             return { width: fitSize.width };

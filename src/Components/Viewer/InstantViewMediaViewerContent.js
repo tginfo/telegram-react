@@ -16,8 +16,11 @@ import Player from '../Player/Player';
 import { getSrc, getViewerFile, getViewerMinithumbnail, getViewerThumbnail } from '../../Utils/File';
 import { isBlurredThumbnail } from '../../Utils/Media';
 import { isEmptyText } from '../../Utils/InstantView';
-import { setFileOptions } from '../../registerServiceWorker';
 import FileStore from '../../Stores/FileStore';
+import Animation from '../Message/Media/Animation';
+import { ANIMATION_PREVIEW_DISPLAY_SIZE } from '../../Constants';
+import PlayerStore from '../../Stores/PlayerStore';
+import TdLibController from '../../Controllers/TdLibController';
 
 class InstantViewMediaViewerContent extends React.Component {
     constructor(props) {
@@ -45,8 +48,7 @@ class InstantViewMediaViewerContent extends React.Component {
             if (!src && supportsStreaming) {
                 const { video } = media;
                 if (video) {
-                    src = `/streaming/file_id=${file.id}`;
-                    setFileOptions(src, { fileId: file.id, size: file.size, mimeType: video.mime_type });
+                    src = `/streaming/file?id=${file.id}&size=${file.size}&mime_type=${video.mime_type}`;
                 }
             }
 
@@ -80,6 +82,7 @@ class InstantViewMediaViewerContent extends React.Component {
         FileStore.on('clientUpdateAnimationBlob', this.onClientUpdateMediaBlob);
         FileStore.on('clientUpdateVideoThumbnailBlob', this.onClientUpdateMediaThumbnailBlob);
         FileStore.on('clientUpdateAnimationThumbnailBlob', this.onClientUpdateMediaThumbnailBlob);
+        PlayerStore.on('clientUpdatePictureInPicture', this.onClientUpdatePictureInPicture);
     }
 
     componentWillUnmount() {
@@ -88,7 +91,21 @@ class InstantViewMediaViewerContent extends React.Component {
         FileStore.off('clientUpdateAnimationBlob', this.onClientUpdateMediaBlob);
         FileStore.off('clientUpdateVideoThumbnailBlob', this.onClientUpdateMediaThumbnailBlob);
         FileStore.off('clientUpdateAnimationThumbnailBlob', this.onClientUpdateMediaThumbnailBlob);
+        PlayerStore.off('clientUpdatePictureInPicture', this.onClientUpdatePictureInPicture);
     }
+
+    onClientUpdatePictureInPicture = update => {
+        const { videoInfo } = update;
+        if (!videoInfo) return;
+
+        const { file } = this.state;
+        if (file.id !== videoInfo.fileId) return;
+
+        TdLibController.clientUpdate({
+            '@type': 'clientUpdateInstantViewViewerContent',
+            content: null
+        });
+    };
 
     componentDidUpdate(prevProps, prevState, snapshot) {
         const { src } = this.state;
@@ -192,6 +209,18 @@ class InstantViewMediaViewerContent extends React.Component {
                 break;
             }
             case 'animation': {
+                // content = (
+                //     <Animation
+                //         type='preview'
+                //         stretch={true}
+                //         displaySize={ANIMATION_PREVIEW_DISPLAY_SIZE}
+                //         animation={media}
+                //         onClick={this.handleContentClick}
+                //         showProgress={false}
+                //         style={{ borderRadius: 0 }}
+                //     />
+                // );
+
                 content = (
                     <div className='media-viewer-content-wrapper'>
                         <video

@@ -10,6 +10,7 @@ import classNames from 'classnames';
 import { compose } from '../Utils/HOC';
 import withLanguage from '../Language';
 import withSnackbarNotifications from '../Notifications';
+import PipPlayer from './Player/PipPlayer';
 import ForwardDialog from './Popup/ForwardDialog';
 import ChatInfo from './ColumnRight/ChatInfo';
 import Dialogs from './ColumnLeft/Dialogs';
@@ -22,6 +23,7 @@ import AppStore from '../Stores/ApplicationStore';
 import ChatStore from '../Stores/ChatStore';
 import InstantViewStore from '../Stores/InstantViewStore';
 import UserStore from '../Stores/UserStore';
+import PlayerStore from '../Stores/PlayerStore';
 import TdLibController from '../Controllers/TdLibController';
 import '../TelegramApp.css';
 
@@ -39,14 +41,9 @@ class MainPage extends React.Component {
             profileMediaViewerContent,
             isSmallWidth,
             forwardInfo: null,
-            instantViewContent: null
+            instantViewContent: null,
+            videoInfo: null
         };
-
-        /*this.store = localForage.createInstance({
-                    name: 'tdlib'
-                });*/
-
-        //this.initDB();
     }
 
     componentDidMount() {
@@ -59,6 +56,7 @@ class MainPage extends React.Component {
         AppStore.on('clientUpdateProfileMediaViewerContent', this.onClientUpdateProfileMediaViewerContent);
         AppStore.on('clientUpdateForward', this.onClientUpdateForward);
         InstantViewStore.on('clientUpdateInstantViewContent', this.onClientUpdateInstantViewContent);
+        PlayerStore.on('clientUpdatePictureInPicture', this.onClientUpdatePictureInPicture);
     }
 
     componentWillUnmount() {
@@ -71,7 +69,16 @@ class MainPage extends React.Component {
         AppStore.off('clientUpdateProfileMediaViewerContent', this.onClientUpdateProfileMediaViewerContent);
         AppStore.off('clientUpdateForward', this.onClientUpdateForward);
         InstantViewStore.off('clientUpdateInstantViewContent', this.onClientUpdateInstantViewContent);
+        PlayerStore.off('clientUpdatePictureInPicture', this.onClientUpdatePictureInPicture);
     }
+
+    onClientUpdatePictureInPicture = update => {
+        const { videoInfo } = update;
+
+        this.setState({
+            videoInfo
+        });
+    };
 
     onClientUpdatePageWidth = update => {
         const { isSmallWidth } = update;
@@ -170,10 +177,9 @@ class MainPage extends React.Component {
             mediaViewerContent,
             profileMediaViewerContent,
             forwardInfo,
+            videoInfo,
             isSmallWidth
         } = this.state;
-
-        // console.log('[p] mainPage.render');
 
         return (
             <>
@@ -190,6 +196,7 @@ class MainPage extends React.Component {
                 {mediaViewerContent && <MediaViewer {...mediaViewerContent} />}
                 {profileMediaViewerContent && <ProfileMediaViewer {...profileMediaViewerContent} />}
                 {forwardInfo && <ForwardDialog {...forwardInfo} />}
+                {videoInfo && <PipPlayer {...videoInfo}/>}
             </>
         );
     }

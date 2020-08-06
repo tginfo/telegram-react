@@ -17,12 +17,12 @@ import { getFileSize, getSrc } from '../../../Utils/File';
 import { isBlurredThumbnail } from '../../../Utils/Media';
 import { clamp, getDurationString } from '../../../Utils/Common';
 import { PHOTO_DISPLAY_SIZE, PHOTO_SIZE } from '../../../Constants';
-import PlayerStore from '../../../Stores/PlayerStore';
-import FileStore from '../../../Stores/FileStore';
-import MessageStore from '../../../Stores/MessageStore';
 import ApplicationStore from '../../../Stores/ApplicationStore';
-import './VideoNote.css';
+import FileStore from '../../../Stores/FileStore';
 import InstantViewStore from '../../../Stores/InstantViewStore';
+import PlayerStore from '../../../Stores/PlayerStore';
+import MessageStore from '../../../Stores/MessageStore';
+import './VideoNote.css';
 
 const circleStyle = {
     circle: 'video-note-progress-circle'
@@ -321,7 +321,7 @@ class VideoNote extends React.Component {
         const miniSrc = minithumbnail ? 'data:image/jpeg;base64, ' + minithumbnail.data : null;
         const thumbnailSrc = getSrc(thumbnail ? thumbnail.file : null);
         const src = getSrc(video);
-        const isBlurred = thumbnailSrc ? isBlurredThumbnail(thumbnail) : Boolean(miniSrc);
+        const isBlurred = thumbnailSrc ? isBlurredThumbnail(thumbnail, displaySize) : Boolean(miniSrc);
 
         let progress = 0;
         if (videoDuration && currentTime) {
