@@ -7,25 +7,25 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import MediaAudio from '../../Message/Media/Audio';
+import MediaVoiceNote from '../../Message/Media/VoiceNote';
 import Caption from './Caption';
 
-function Audio(props) {
-    const { audio, block, caption, openMedia } = props;
+function VoiceNote(props) {
+    const { voiceNote, block, caption, openMedia } = props;
 
     return (
         <figure>
-            <MediaAudio block={block} audio={audio} openMedia={openMedia} />
+            <MediaVoiceNote block={block} voiceNote={voiceNote} openMedia={openMedia} />
             <Caption text={caption.text} credit={caption.credit} />
         </figure>
     );
 }
 
-Audio.propTypes = {
+VoiceNote.propTypes = {
     block: PropTypes.object.isRequired,
-    audio: PropTypes.object,
+    voiceNote: PropTypes.object,
     caption: PropTypes.object.isRequired,
     openMedia: PropTypes.func
 };
 
-export default Audio;
+export default VoiceNote;

@@ -20,6 +20,7 @@ import { getAudioTitle } from './Media';
 import { getDecodedUrl } from './Url';
 import { getServiceMessageContent } from './ServiceMessage';
 import { getUserFullName } from './User';
+import { getBlockAudio } from './InstantView';
 import { LOCATION_HEIGHT, LOCATION_SCALE, LOCATION_WIDTH, LOCATION_ZOOM, PHOTO_DISPLAY_SIZE, PHOTO_SIZE, PLAYER_AUDIO_2X_MIN_DURATION } from '../Constants';
 import AppStore from '../Stores/ApplicationStore';
 import ChatStore from '../Stores/ChatStore';
@@ -28,7 +29,6 @@ import MessageStore from '../Stores/MessageStore';
 import PlayerStore from '../Stores/PlayerStore';
 import UserStore from '../Stores/UserStore';
 import TdLibController from '../Controllers/TdLibController';
-import { isEmptyText } from './InstantView';
 
 export function isMetaBubble(chatId, messageId) {
     const message = MessageStore.get(chatId, messageId);
@@ -170,8 +170,8 @@ function getFormattedText(formattedText, t = k => k) {
 
     const { text, entities } = formattedText;
     if (!text) return null;
-    if (!entities) return text;
-    if (!entities.length) return text;
+    if (!entities) return [text];
+    if (!entities.length) return [text];
 
     let deleteLineBreakAfterPre = false;
     let result = [];
@@ -360,6 +360,27 @@ function getWebPage(message) {
 
     return message.content.web_page;
 }
+
+export function getViews(views) {
+    if (views < 1000) {
+        return views
+    }
+
+
+    if (views < 1000000) {
+        views = Math.trunc(views / 100);
+        const fractionDigits = views % 10 < 1 ? 0 : 1;
+
+        return (views / 10).toFixed(fractionDigits) + 'K';
+    }
+
+    views = Math.trunc(views / 100000);
+    const fractionDigits = views % 10 < 1 ? 0 : 1;
+
+    return (views / 10).toFixed(fractionDigits) + 'M';
+}
+
+window.getViews = getViews;
 
 function getDate(date) {
     if (!date) return null;
@@ -685,6 +706,57 @@ function isLottieMessage(chatId, messageId) {
     }
 }
 
+export function isEmbedMessage(chatId, messageId) {
+    const message = MessageStore.get(chatId, messageId);
+    if (!message) return false;
+
+    const { content } = message;
+    if (!content) return false;
+
+    switch (content['@type']) {
+        case 'messageText': {
+            const { web_page } = content;
+            if (!web_page) return false;
+
+            const { embed_url, site_name } = web_page;
+            if (!embed_url) return false;
+            if (!site_name) return false;
+
+            switch (site_name) {
+                case 'Coub': {
+                    return true;
+                }
+                case 'SoundCloud': {
+                    return true;
+                }
+                case 'Spotify': {
+                    return true;
+                }
+                case 'Twitch': {
+                    return true;
+                }
+                case 'YouTube': {
+                    return true;
+                }
+                case 'Vimeo': {
+                    return true;
+                }
+                case 'КиноПоиск': {
+                    return true;
+                }
+                case 'Яндекс.Музыка': {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        default: {
+            return false;
+        }
+    }
+}
+
 function isAnimationMessage(chatId, messageId) {
     const message = MessageStore.get(chatId, messageId);
     if (!message) return false;
@@ -726,69 +798,62 @@ function isContentOpened(chatId, messageId) {
     }
 }
 
-function getMediaTitle(message, t = k => k) {
-    if (!message) return null;
+export function hasVoice(source) {
+    if (!source) return false;
 
-    const { content } = message;
-    if (!content) return null;
+    switch (source['@type']) {
+        case 'message': {
+            const message = MessageStore.get(source.chat_id, source.id);
+            if (!message) return false;
 
-    switch (content['@type']) {
-        case 'messageAudio': {
-            const { audio } = content;
-            if (audio) {
-                return getAudioTitle(audio);
-            }
-            break;
-        }
-        case 'messageText': {
-            const { web_page } = content;
-            if (web_page) {
-                const { audio } = web_page;
-                if (audio) {
-                    return getAudioTitle(audio);
+            const { content } = message;
+            if (!content) return false;
+
+            switch (content['@type']) {
+                case 'messageVoiceNote': {
+                    const { voice_note } = content;
+                    if (voice_note) {
+                        return true;
+                    }
+
+                    break;
                 }
-                break;
-            }
-        }
-    }
+                case 'messageText': {
+                    const { web_page } = content;
+                    if (web_page) {
+                        const { voice_note } = web_page;
+                        if (voice_note) {
+                            return true;
+                        }
+                    }
 
-    return getAuthor(message, t);
-}
-
-export function hasVoice(chatId, messageId) {
-    const message = MessageStore.get(chatId, messageId);
-    if (!message) return false;
-
-    const { content } = message;
-    if (!content) return false;
-
-    switch (content['@type']) {
-        case 'messageVoiceNote': {
-            const { voice_note } = content;
-            if (voice_note) {
-                return true;
-            }
-
-            break;
-        }
-        case 'messageText': {
-            const { web_page } = content;
-            if (web_page) {
-                const { voice_note } = web_page;
-                if (voice_note) {
-                    return true;
+                    break;
                 }
             }
-
             break;
+        }
+        case 'pageBlockVoiceNote': {
+            return true;
         }
     }
 
     return false;
 }
 
-export function useAudioPlaybackRate(chatId, messageId) {
-    const audio = getMessageAudio(chatId, messageId);
+export function useAudioPlaybackRate(source) {
+    if (!source) return false;
+
+    let audio = null;
+    switch (source['@type']) {
+        case 'message': {
+            audio = getMessageAudio(source.chat_id, source.id);
+            break;
+        }
+        case 'pageBlockAudio': {
+            audio = getBlockAudio(source);
+            break;
+        }
+    }
 
     return audio && audio.duration > PLAYER_AUDIO_2X_MIN_DURATION;
 }
@@ -821,8 +886,19 @@ export function getMessageAudio(chatId, messageId) {
     return null;
 }
 
-function hasAudio(chatId, messageId) {
-    return Boolean(getMessageAudio(chatId, messageId));
+function hasAudio(source) {
+    if (!source) return false;
+
+    switch (source['@type']) {
+        case 'message': {
+            return !!getMessageAudio(source.chat_id, source.id);
+        }
+        case 'pageBlockAudio': {
+            return !!getBlockAudio(source);
+        }
+    }
+
+    return false;
 }
 
 function hasVideoNote(chatId, messageId) {
@@ -1002,8 +1078,7 @@ function openAudio(audio, message, fileCancel) {
 
     TdLibController.clientUpdate({
         '@type': 'clientUpdateMediaActive',
-        chatId: chat_id,
-        messageId: id,
+        source: MessageStore.get(chat_id, id),
         currentTime,
         duration
     });
@@ -1260,8 +1335,7 @@ function openVideoNote(videoNote, message, fileCancel) {
 
     TdLibController.clientUpdate({
         '@type': 'clientUpdateMediaActive',
-        chatId: chat_id,
-        messageId: id,
+        source: MessageStore.get(chat_id, id),
         currentTime,
         duration
     });
@@ -1299,8 +1373,7 @@ function openVoiceNote(voiceNote, message, fileCancel) {
 
     TdLibController.clientUpdate({
         '@type': 'clientUpdateMediaActive',
-        chatId: chat_id,
-        messageId: id,
+        source: MessageStore.get(chat_id, id),
         currentTime,
         duration
     });
@@ -2622,7 +2695,6 @@ export {
     isLottieMessage,
     getLocationId,
     isContentOpened,
-    getMediaTitle,
     hasAudio,
     hasVideoNote,
     getSearchMessagesFilter,

@@ -17,7 +17,8 @@
 
 import { arrayBufferToBase64, isAuthorizationReady } from './Utils/Common';
 import { OPTIMIZATIONS_FIRST_START, PLAYER_STREAMING_PRIORITY } from './Constants';
-import ApplicationStore from './Stores/ApplicationStore';
+import AppStore from './Stores/ApplicationStore';
+import FileStore from './Stores/FileStore';
 import NotificationStore from './Stores/NotificationStore';
 import TdLibController from './Controllers/TdLibController';
 
@@ -109,7 +110,7 @@ export async function subscribeNotifications() {
         const auth_base64url = arrayBufferToBase64(pushSubscription.getKey('auth'));
 
         if (endpoint && p256dh_base64url && auth_base64url) {
-            const { authorizationState } = ApplicationStore;
+            const { authorizationState } = AppStore;
             if (isAuthorizationReady(authorizationState)) {
                 const deviceToken = {
                     '@type': 'deviceTokenWebPush',
@@ -177,22 +178,50 @@ window.requests = requests;
 async function processRequest(request) {
     const { fileId, offset, limit, resolve, reject } = request;
 
+    const file = FileStore.get(fileId);
     try {
-        await TdLibController.send({
-            '@type': 'downloadFile',
-            file_id: fileId,
-            priority: PLAYER_STREAMING_PRIORITY,
-            offset,
-            limit,
-            synchronous: true
-        });
+        let filePart = null;
+        try {
+            if (file) {
+                const { local } = file;
+                if (local) {
+                    const { download_offset, downloaded_prefix_size } = local;
+                    // console.log('[cache] checkFile', fileId, [offset, limit], [download_offset, downloaded_prefix_size]);
+                    if (download_offset <= offset && offset + limit <= download_offset + downloaded_prefix_size) {
 
-        const filePart = await TdLibController.send({
-            '@type': 'readFilePart',
-            file_id: fileId,
-            offset,
-            count: limit
-        });
+                        // console.log('[cache] readExistingFile', fileId);
+                        filePart = await TdLibController.send({
+                            '@type': 'readFilePart',
+                            file_id: fileId,
+                            offset,
+                            count: limit
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            
+        }
+
+        if (!filePart) {
+            // console.log('[cache] downloadFile', fileId, [offset, limit]);
+            await TdLibController.send({
+                '@type': 'downloadFile',
+                file_id: fileId,
+                priority: PLAYER_STREAMING_PRIORITY,
+                offset,
+                limit,
+                synchronous: true
+            });
+
+            // console.log('[cache] readFilePart', fileId, [offset, limit]);
+            filePart = await TdLibController.send({
+                '@type': 'readFilePart',
+                file_id: fileId,
+                offset,
+                count: limit
+            });
+        }
 
         const { data } = filePart;
 
