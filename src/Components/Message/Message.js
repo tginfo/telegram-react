@@ -9,6 +9,7 @@ import React, { Component } from 'react';
 import classNames from 'classnames';
 import { compose } from '../../Utils/HOC';
 import { withTranslation } from 'react-i18next';
+import { withRestoreRef, withSaveRef } from '../../Utils/HOC';
 import CheckMarkIcon from '@material-ui/icons/Check';
 import DayMeta from './DayMeta';
 import Reply from './Reply';
@@ -28,7 +29,7 @@ import {
     showMessageForward,
     isMetaBubble,
     canMessageBeForwarded,
-    getMessageStyle
+    getMessageStyle, isMediaContent
 } from '../../Utils/Message';
 import { getMedia } from '../../Utils/Media';
 import { canSendMessages, isChannelChat, isPrivateChat } from '../../Utils/Chat';
@@ -36,12 +37,14 @@ import {
     openUser,
     openChat,
     selectMessage,
-    openReply, replyMessage, forwardMessages
+    openReply,
+    replyMessage,
+    forwardMessages
 } from '../../Actions/Client';
-import { withRestoreRef, withSaveRef } from '../../Utils/HOC';
 import MessageStore from '../../Stores/MessageStore';
-import TdLibController from '../../Controllers/TdLibController';
 import './Message.css';
+import StubMessage from './StubMessage';
+import EmptyTile from '../Tile/EmptyTile';
 
 class Message extends Component {
     constructor(props) {
@@ -131,8 +134,6 @@ class Message extends Component {
         MessageStore.on('clientUpdateMessageShake', this.onClientUpdateMessageShake);
         MessageStore.on('clientUpdateClearSelection', this.onClientUpdateClearSelection);
         MessageStore.on('updateMessageContent', this.onUpdateMessageContent);
-        MessageStore.on('updateMessageEdited', this.onUpdateMessageEdited);
-        MessageStore.on('updateMessageViews', this.onUpdateMessageViews);
     }
 
     componentWillUnmount() {
@@ -141,8 +142,6 @@ class Message extends Component {
         MessageStore.off('clientUpdateMessageShake', this.onClientUpdateMessageShake);
         MessageStore.off('clientUpdateClearSelection', this.onClientUpdateClearSelection);
         MessageStore.off('updateMessageContent', this.onUpdateMessageContent);
-        MessageStore.off('updateMessageEdited', this.onUpdateMessageEdited);
-        MessageStore.off('updateMessageViews', this.onUpdateMessageViews);
     }
 
     onClientUpdateClearSelection = update => {
@@ -195,24 +194,6 @@ class Message extends Component {
 
         if (chatId === update.chatId && messageId === update.messageId) {
             this.setState({ selected, highlighted: false });
-        }
-    };
-
-    onUpdateMessageEdited = update => {
-        const { chat_id, message_id } = update;
-        const { chatId, messageId } = this.props;
-
-        if (chatId === chat_id && messageId === message_id) {
-            this.forceUpdate();
-        }
-    };
-
-    onUpdateMessageViews = update => {
-        const { chat_id, message_id } = update;
-        const { chatId, messageId } = this.props;
-
-        if (chatId === chat_id && messageId === message_id) {
-            this.forceUpdate();
         }
     };
 
@@ -341,7 +322,8 @@ class Message extends Component {
     };
 
     render() {
-        const { t, chatId, messageId, showUnreadSeparator, showTail, showTitle, showDate } = this.props;
+        let { showTail } = this.props;
+        const { t, chatId, messageId, showUnreadSeparator, showTitle, showDate } = this.props;
         const {
             emojiMatches,
             selected,
@@ -380,19 +362,46 @@ class Message extends Component {
         const suppressTitle = isPrivateChat(chatId);
         const hasTitle = (!suppressTitle && showTitle) || showForward || showReply;
         const media = getMedia(message, this.openMedia, hasTitle, hasCaption, inlineMeta);
+        const isChannel = isChannelChat(chatId);
+        const isPrivate = isPrivateChat(chatId);
+
+        // if (showTail && isMediaContent() && !hasCaption) {
+        //     showTail = false;
+        // }
 
         let tile = null;
         if (showTail) {
-            tile = sender_user_id ? (
-                <UserTile small userId={sender_user_id} onSelect={this.handleSelectUser} />
-            ) : (
-                <ChatTile small chatId={chatId} onSelect={this.handleSelectChat} />
-            );
+            if (isPrivate) {
+                tile = <EmptyTile small />
+            } else if (isChannel) {
+                tile = <EmptyTile small />
+            } else if (is_outgoing) {
+                tile = <EmptyTile small />
+            } else if (sender_user_id) {
+                tile = <UserTile small userId={sender_user_id} onSelect={this.handleSelectUser} />
+            } else {
+                tile = <ChatTile small chatId={chatId} onSelect={this.handleSelectChat} />
+            }
         }
 
         const style = getMessageStyle(chatId, messageId);
         const withBubble =
             message.content['@type'] !== 'messageSticker' && message.content['@type'] !== 'messageVideoNote';
+
+        // console.log('[p] m.render id=' + message.id);
+
+        // return (
+        //     <StubMessage>
+        //         {text}
+        //         {media}
+        //         <WebPage
+        //             chatId={chatId}
+        //             messageId={messageId}
+        //             openMedia={this.openMedia}
+        //             meta={inlineMeta}
+        //         />
+        //     </StubMessage>
+        // );
 
         return (
             <div>
@@ -403,9 +412,9 @@ class Message extends Component {
                         'message-out': isOutgoing,
                         'message-selected': selected,
                         'message-highlighted': highlighted && !selected,
-                        'message-top': showTitle && !showTail,
-                        'message-bottom': !showTitle && showTail,
-                        'message-middle': !showTitle && !showTail,
+                        'message-group-title': showTitle && !showTail,
+                        'message-group': !showTitle && !showTail,
+                        'message-group-tail': !showTitle && showTail,
                         'message-bubble-hidden': !withBubble
                     })}
                     onMouseOver={this.handleMouseOver}
