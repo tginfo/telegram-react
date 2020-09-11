@@ -8,6 +8,7 @@
 import EventEmitter from './EventEmitter';
 import { getLocationId } from '../Utils/Message';
 import { FILE_PRIORITY, IV_LOCATION_HEIGHT, IV_LOCATION_WIDTH, THUMBNAIL_PRIORITY } from '../Constants';
+import WebpManager from './WebpManager';
 import TdLibController from '../Controllers/TdLibController';
 
 const useReadFile = true;
@@ -21,6 +22,7 @@ class FileStore extends EventEmitter {
 
         this.addTdLibListener();
 
+        WebpManager.init();
         // this.suppressUpdateFile = true;
     }
 
@@ -33,6 +35,7 @@ class FileStore extends EventEmitter {
         this.dataUrls = new Map();
         this.items = new Map();
         this.blobItems = new Map();
+        this.pngBlobItems = new Map();
         this.locationItems = new Map();
 
         this.downloads = new Map();
@@ -100,10 +103,43 @@ class FileStore extends EventEmitter {
                 break;
             }
             case 'clientUpdateStickerBlob': {
+                const { fileId, source } = update;
+                if (source) {
+                    const { is_animated } = source;
+                    if (!is_animated) {
+                        WebpManager.decode(fileId, false);
+                    }
+                }
+
+                this.emit(update['@type'], update);
+                break;
+            }
+            case 'clientUpdateStickerPngBlob': {
+                const { fileId, blob } = update;
+
+                this.setPngBlob(fileId, blob);
                 this.emit(update['@type'], update);
                 break;
             }
             case 'clientUpdateStickerThumbnailBlob': {
+                const { fileId, source } = update;
+                if (source) {
+                    const { thumbnail } = source;
+                    if (thumbnail) {
+                        const { format } = thumbnail;
+                        if (format && format['@type'] === 'thumbnailFormatWebp') {
+                            WebpManager.decode(fileId, true);
+                        }
+                    }
+                }
+
+                this.emit(update['@type'], update);
+                break;
+            }
+            case 'clientUpdateStickerThumbnailPngBlob': {
+                const { fileId, blob } = update;
+
+                this.setPngBlob(fileId, blob);
                 this.emit(update['@type'], update);
                 break;
             }
@@ -597,7 +633,7 @@ class FileStore extends EventEmitter {
                     store,
                     source,
                     arr,
-                    () => this.updateStickerThumbnailBlob(chatId, messageId, file.id),
+                    () => this.updateStickerThumbnailBlob(chatId, messageId, file.id, sticker),
                     () => this.getRemoteFile(file.id, THUMBNAIL_PRIORITY, obj || sticker)
                 );
             }
@@ -610,7 +646,7 @@ class FileStore extends EventEmitter {
                     store,
                     source,
                     arr,
-                    () => this.updateStickerBlob(chatId, messageId, file.id),
+                    () => this.updateStickerBlob(chatId, messageId, file.id, sticker),
                     () => this.getRemoteFile(file.id, FILE_PRIORITY, obj || sticker)
                 );
             }
@@ -910,6 +946,14 @@ class FileStore extends EventEmitter {
         this.blobItems.set(fileId, blob);
     };
 
+    getPngBlob = fileId => {
+        return this.pngBlobItems.get(fileId);
+    };
+
+    setPngBlob = (fileId, blob) => {
+        this.pngBlobItems.set(fileId, blob);
+    }
+
     deleteBlob = fileId => {
         this.blobItems.delete(fileId);
     };
@@ -967,12 +1011,13 @@ class FileStore extends EventEmitter {
         }
     };
 
-    updateFileBlob = (type, chatId, messageId, fileId) => {
+    updateFileBlob = (type, chatId, messageId, fileId, source) => {
         TdLibController.clientUpdate({
             '@type': type,
             chatId,
             messageId,
-            fileId
+            fileId,
+            source
         });
     }
 
@@ -1016,12 +1061,12 @@ class FileStore extends EventEmitter {
         this.updateFileBlob('clientUpdatePhotoBlob', chatId, messageId, fileId);
     };
 
-    updateStickerBlob = (chatId, messageId, fileId) => {
-        this.updateFileBlob('clientUpdateStickerBlob', chatId, messageId, fileId);
+    updateStickerBlob = (chatId, messageId, fileId, source) => {
+        this.updateFileBlob('clientUpdateStickerBlob', chatId, messageId, fileId, source);
     };
 
-    updateStickerThumbnailBlob = (chatId, messageId, fileId) => {
-        this.updateFileBlob('clientUpdateStickerThumbnailBlob', chatId, messageId, fileId);
+    updateStickerThumbnailBlob = (chatId, messageId, fileId, source) => {
+        this.updateFileBlob('clientUpdateStickerThumbnailBlob', chatId, messageId, fileId, source);
     };
 
     updateUserPhotoBlob(userId, fileId) {
