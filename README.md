@@ -42,7 +42,7 @@ Define its value to be the string `http://{username}.github.io/{repo-name}`, whe
     
 ```js
 //...
-"homepage": "http://tginfo.github.io/telegram-react"
+"homepage": "https://tginfo.github.io/telegram-react"
 ```
     
 2. **Generate a *production build* of your app and deploy it to GitHub Pages.**

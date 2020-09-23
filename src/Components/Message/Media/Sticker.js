@@ -225,47 +225,49 @@ class Sticker extends React.Component {
             stickerPreviewOpened,
             stickerSetOpened,
             messageInView,
-            mouseEntered
+            mouseEntered,
+            completeLoop
         } = this;
 
         if (!windowFocused) {
+            // console.log('[sticker] stop focused', [source, autoplay]);
             player.pause();
             return;
         }
 
         if (chatPopupOpened) {
+            // console.log('[sticker] stop chatPopupOpened', [source, autoplay]);
             player.pause();
             return;
         }
 
         if (mediaViewerOpened) {
+            // console.log('[sticker] stop mediaViewerOpened', [source, autoplay]);
             player.pause();
             return;
         }
 
         if (profileMediaViewerOpened) {
+            // console.log('[sticker] stop profileMediaViewerOpened', [source, autoplay]);
             player.pause();
             return;
         }
 
         if (ivOpened) {
+            // console.log('[sticker] stop ivOpened', [source, autoplay]);
             player.pause();
             return;
         }
 
-        if (stickerPreviewOpened) {
-            player.pause();
-            return;
-        }
-
-        if (!autoplay && !mouseEntered) {
+        if (!autoplay && !mouseEntered && !completeLoop) {
+            // console.log('[sticker] stop !autoplay && !mouseEntered', [source, autoplay]);
             player.pause();
             return;
         }
 
         switch (source) {
             case StickerSourceEnum.HINTS: {
-                const playing = !stickerSetOpened;
+                const playing = !stickerSetOpened && !stickerPreviewOpened;
 
                 if (playing) {
                     player.play();
@@ -274,7 +276,7 @@ class Sticker extends React.Component {
                 break;
             }
             case StickerSourceEnum.MESSAGE: {
-                const playing = !stickerSetOpened && messageInView;
+                const playing = !stickerSetOpened && messageInView && !stickerPreviewOpened;
 
                 if (playing) {
                     player.play();
@@ -283,7 +285,7 @@ class Sticker extends React.Component {
                 break;
             }
             case StickerSourceEnum.PICKER: {
-                const playing = !stickerSetOpened;
+                const playing = !stickerSetOpened && !stickerPreviewOpened;
 
                 if (playing) {
                     player.play();
@@ -292,7 +294,7 @@ class Sticker extends React.Component {
                 break;
             }
             case StickerSourceEnum.PICKER_HEADER: {
-                const playing = !stickerSetOpened;
+                const playing = !stickerSetOpened && !stickerPreviewOpened;
 
                 if (playing) {
                     player.play();
@@ -310,7 +312,7 @@ class Sticker extends React.Component {
                 break;
             }
             case StickerSourceEnum.STICKER_SET: {
-                const playing = stickerSetOpened;
+                const playing = stickerSetOpened && !stickerPreviewOpened;
 
                 if (playing) {
                     player.play();
@@ -323,6 +325,7 @@ class Sticker extends React.Component {
             }
         }
 
+        // console.log('[sticker] stop', [source, autoplay]);
         player.pause();
     }
 
@@ -414,35 +417,42 @@ class Sticker extends React.Component {
     };
 
     handleMouseEnter = () => {
-        const { animationData, fileId } = this;
+        const { autoplay } = this.props;
+        if (autoplay) return;
 
-        if (animationData) {
-            this.setState({ animationData, fileId }, () => {
-                this.handleAnimationMouseEnter();
-            });
-        }
+        const { animationData, fileId } = this;
+        if (!animationData) return;
+
+        this.setState({ animationData, fileId }, () => {
+            this.handleAnimationMouseEnter();
+        });
     };
 
     handleAnimationMouseEnter = () => {
-        if (this.props.autoplay) return;
-
-        this.mouseEntered = true;
+        const { autoplay } = this.props;
+        if (autoplay) return;
 
         const player = this.lottieRef.current;
         if (!player) return;
 
         this.loopCount = 0;
+        this.mouseEntered = true;
+        this.completeLoop = false;
+
         this.startStopAnimation();
     };
 
     handleAnimationLoopComplete = () => {
-        if (this.props.autoplay) return;
+        const { autoplay } = this.props;
+        if (autoplay) return;
 
         const player = this.lottieRef.current;
         if (!player) return;
 
         if (!this.mouseEntered) this.loopCount += 1;
         if (this.loopCount > 0) {
+            this.completeLoop = false;
+
             const { animationData } = this.state;
             if (animationData) {
                 this.setState({ loaded: false, animationData: null });
@@ -451,7 +461,11 @@ class Sticker extends React.Component {
     };
 
     handleMouseOut = () => {
+        const { autoplay } = this.props;
+        if (autoplay) return;
+
         this.mouseEntered = false;
+        this.completeLoop = true;
     };
 
     handleLoad = () => {
@@ -526,14 +540,6 @@ class Sticker extends React.Component {
                                     loop: true,
                                     fileId,
                                     animationData,
-                                    renderer: 'svg',
-                                    rendererSettings: {
-                                        preserveAspectRatio: 'xMinYMin slice', // Supports the same options as the svg element's preserveAspectRatio property
-                                        clearCanvas: false,
-                                        progressiveLoad: true, // Boolean, only svg renderer, loads dom elements when needed. Might speed up initialization for large number of elements.
-                                        hideOnTransparent: true, //Boolean, only svg renderer, hides elements when opacity reaches 0 (defaults to true)
-                                        className: 'lottie-svg'
-                                    },
                                     inViewportFunc
                                 }}
                                 eventListeners={[

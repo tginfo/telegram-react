@@ -6,44 +6,33 @@
  */
 import React from 'react';
 import PropTypes from 'prop-types';
+import './RLottie.css';
 
 class RLottie extends React.Component {
     componentDidMount() {
         const { options, eventListeners } = this.props;
 
         const {
-            url,
             loop,
             autoplay,
             animationData,
             stringData,
-            rendererSettings,
-            segments
+            queueLength
         } = options;
 
         this.options = {
             container: this.el,
-            renderer: 'canvas',
             loop: Boolean(loop),
             autoplay: Boolean(autoplay),
-            segments: Boolean(segments),
             animationData,
             stringData,
-            rendererSettings
+            queueLength
         };
 
         this.options = { ...this.options, ...options };
-        const data = this.options.animationData;
-        const fileId = this.options.fileId;
-        // console.log('[RLottie] ctor loadAnimation start', [fileId, data]);
         window.RLottie.loadAnimation(this.options, anim => {
             this.anim = anim;
-            // console.log('[RLottie] ctor loadAnimation stop', anim, [fileId, data]);
-            // if (this.props.options.url === url) {
-            //     this.anim = anim;
-            // } else {
-            //     window.RLottie.destroy(anim);
-            // }
+
             if (window.RLottie.hasFirstFrame(this.anim)) {
                 if (!eventListeners) return;
 
@@ -139,6 +128,8 @@ class RLottie extends React.Component {
     }
 
     registerEvents(eventListeners) {
+        // console.log('[Rlottie] registerEvents', [this.anim, eventListeners]);
+
         if (!this.anim) return;
 
         if (!eventListeners) return;
@@ -167,7 +158,8 @@ class RLottie extends React.Component {
             title,
             onClick,
             onMouseEnter,
-            onMouseOut
+            onMouseOut,
+            style
         } = this.props;
 
         const lottieStyles = {
@@ -176,7 +168,7 @@ class RLottie extends React.Component {
             overflow: 'hidden',
             // margin: '0 auto',
             outline: 'none',
-            ...this.props.style
+            ...style
         };
 
         return (
