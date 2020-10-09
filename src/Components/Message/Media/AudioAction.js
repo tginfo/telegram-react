@@ -184,7 +184,7 @@ class AudioAction extends React.Component {
     }
 
     render() {
-        const { title, meta, streaming } = this.props;
+        const { date, meta, streaming } = this.props;
         const { active, file, timeString } = this.state;
         if (!file) return null;
 
@@ -220,9 +220,11 @@ class AudioAction extends React.Component {
 
         return (
             <div className='audio-action'>
-                {!active && <span>{title}</span>}
-                {<span>{strings.join(', ')}</span>}
-                {meta}
+                <span>
+                    {strings.join(', ')}
+                    {!active && date && (` · ${date}`)}
+                    {meta}
+                </span>
             </div>
         );
     }
@@ -240,7 +242,7 @@ AudioAction.propTypes = {
     duration: PropTypes.number.isRequired,
     file: PropTypes.object.isRequired,
 
-    title: PropTypes.string,
+    date: PropTypes.string,
     streaming: PropTypes.bool
 };
 

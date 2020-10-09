@@ -15,13 +15,63 @@ import { getContent, isMessageUnread } from './Message';
 import { isServiceMessage } from './ServiceMessage';
 import { formatPhoneNumber } from './Phone';
 import { getChannelStatus } from './Channel';
-import { SERVICE_NOTIFICATIONS_USER_ID } from '../Constants';
+import { SERVICE_NOTIFICATIONS_USER_ID, SHARED_MESSAGE_SLICE_LIMIT } from '../Constants';
 import BasicGroupStore from '../Stores/BasicGroupStore';
 import ChatStore from '../Stores/ChatStore';
+import MessageStore from '../Stores/MessageStore';
 import NotificationStore from '../Stores/NotificationStore';
 import SupergroupStore from '../Stores/SupergroupStore';
 import UserStore from '../Stores/UserStore';
 import TdLibController from '../Controllers/TdLibController';
+
+export function getDeleteChatTitle(chatId, t = x => x) {
+    const chat = ChatStore.get(chatId);
+    if (!chat) return null;
+    if (!chat.type) return null;
+
+    switch (chat.type['@type']) {
+        case 'chatTypeBasicGroup': {
+            return t('DeleteChat');
+        }
+        case 'chatTypeSupergroup': {
+            const supergroup = SupergroupStore.get(chat.type.supergroup_id);
+            if (supergroup) {
+                return supergroup.is_channel ? t('LeaveChannel') : t('LeaveMegaMenu');
+            }
+
+            return null;
+        }
+        case 'chatTypePrivate':
+        case 'chatTypeSecret': {
+            return t('DeleteChatUser');
+        }
+    }
+
+    return null;
+}
+
+export function getViewInfoTitle(chatId, t = x => x) {
+    const chat = ChatStore.get(chatId);
+    if (!chat) return;
+
+    const { type } = chat;
+    switch (type['@type']) {
+        case 'chatTypeBasicGroup': {
+            return t('ViewGroupInfo');
+        }
+        case 'chatTypePrivate':
+        case 'chatTypeSecret': {
+            return t('ViewProfile');
+        }
+        case 'chatTypeSupergroup': {
+            if (type.is_channel) {
+                return t('ViewChannelInfo');
+            }
+
+            return t('ViewGroupInfo');
+        }
+    }
+}
 
 export function getChatPosition(chatId, chatList = { '@type': 'chatListMain'}) {
     const chat = ChatStore.get(chatId);
@@ -998,6 +1048,82 @@ function getGroupChatMembers(chatId) {
     return fallbackValue;
 }
 
+export async function getChatMedia(chatId) {
+    const chat = ChatStore.get(chatId);
+    if (!chat) return null;
+
+    console.log('[media] getChatMedia start', chatId);
+    const promises = [];
+
+    const limit = 100;
+    promises.push(TdLibController.send({
+        '@type': 'searchChatMessages',
+        chat_id: chatId,
+        query: '',
+        sender_user_id: 0,
+        from_message_id: 0,
+        offset: 0,
+        limit,
+        filter: { '@type': 'searchMessagesFilterPhotoAndVideo' }
+    }));
+    promises.push(TdLibController.send({
+        '@type': 'searchChatMessages',
+        chat_id: chatId,
+        query: '',
+        sender_user_id: 0,
+        from_message_id: 0,
+        offset: 0,
+        limit,
+        filter: { '@type': 'searchMessagesFilterDocument' }
+    }));
+    promises.push(TdLibController.send({
+        '@type': 'searchChatMessages',
+        chat_id: chatId,
+        query: '',
+        sender_user_id: 0,
+        from_message_id: 0,
+        offset: 0,
+        limit,
+        filter: { '@type': 'searchMessagesFilterAudio' }
+    }));
+    promises.push(TdLibController.send({
+        '@type': 'searchChatMessages',
+        chat_id: chatId,
+        query: '',
+        sender_user_id: 0,
+        from_message_id: 0,
+        offset: 0,
+        limit,
+        filter: { '@type': 'searchMessagesFilterUrl' }
+    }));
+    promises.push(TdLibController.send({
+        '@type': 'searchChatMessages',
+        chat_id: chatId,
+        query: '',
+        sender_user_id: 0,
+        from_message_id: 0,
+        offset: 0,
+        limit,
+        filter: { '@type': 'searchMessagesFilterVoiceNote' }
+    }));
+
+    const [photoAndVideo, document, audio, url, voiceNote] = await Promise.all(promises);
+    const media = {
+        photoAndVideo: photoAndVideo.messages,
+        document: document.messages,
+        audio: audio.messages,
+        url: url.messages,
+        voiceNote: voiceNote.messages,
+    }
+    console.log('[media] getChatMedia stop', chatId, media);
+
+    TdLibController.clientUpdate({
+        '@type': 'clientUpdateChatMedia',
+        chatId,
+        media
+    });
+}
+
 async function getChatFullInfo(chatId) {
     const chat = ChatStore.get(chatId);
     if (!chat) return null;
@@ -1252,6 +1378,7 @@ function canClearHistory(chatId) {
     const chat = ChatStore.get(chatId);
     if (!chat) return false;
     if (!chat.type) return false;
+    if (!chat.last_message) return false;
 
     switch (chat.type['@type']) {
         case 'chatTypeBasicGroup': {
@@ -1275,7 +1402,23 @@ function canClearHistory(chatId) {
 }
 
 function canDeleteChat(chatId) {
-    return !isMeChat(chatId);
+    const chat = ChatStore.get(chatId);
+    if (!chat) return false;
+
+    switch (chat.type['@type']) {
+        case 'chatTypeBasicGroup': {
+            return isChatMember(chatId);
+        }
+        case 'chatTypeSupergroup': {
+            return isChatMember(chatId);
+        }
+        case 'chatTypePrivate':
+        case 'chatTypeSecret': {
+            return !isMeChat(chatId);
+        }
+    }
+
+    return false;
 }
 
 function canSendPolls(chatId) {

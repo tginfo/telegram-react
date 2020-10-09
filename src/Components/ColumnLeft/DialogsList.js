@@ -49,7 +49,7 @@ class DialogListItem extends React.Component {
             return true;
         }
 
-        // console.log('[vl] UserListItem.shouldUpdate false');
+        // console.log('[vl] UserListItem.shouldUpdate false', nextProps, this.props);
         return false;
     }
 
@@ -76,7 +76,6 @@ class DialogsList extends React.Component {
 
         this.state = {
             authorizationState,
-            offset: 0,
             chats: null,
             fistSliceLoaded: false,
             chatList: props.type === 'chatListMain' ? { '@type': 'chatListMain' } : { '@type': 'chatListArchive' }
@@ -85,7 +84,7 @@ class DialogsList extends React.Component {
 
     shouldComponentUpdate(nextProps, nextState) {
         const { theme, open, showArchive, archiveTitle, items, cacheItems } = this.props;
-        const { chats, offset, chatList } = this.state;
+        const { chats, chatList } = this.state;
 
         if (nextProps.theme !== theme) {
             return true;
@@ -111,10 +110,6 @@ class DialogsList extends React.Component {
             return true;
         }
 
-        if (nextState.offset !== offset) {
-            return true;
-        }
-
         if (nextState.chats !== chats) {
             return true;
         }
@@ -134,15 +129,7 @@ class DialogsList extends React.Component {
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
-        const { current: list } = this.listRef;
-        if (!list) return;
 
-        const { scrollTop } = snapshot;
-
-        // if (prevState.offset > this.state.offset) {
-        //     list.scrollTop += ( - this.state.offset + prevState.offset) * 72;
-        // }
-        // list.scrollTop = scrollTop;
     }
 
     componentDidMount() {
@@ -222,6 +209,7 @@ class DialogsList extends React.Component {
         const { authorizationState } = this.state;
         if (!isAuthorizationReady(authorizationState)) return;
 
+        this.loaded = false;
         await FileStore.initDB(() => this.onLoadNext(true));
     };
 
@@ -287,7 +275,12 @@ class DialogsList extends React.Component {
             }
         } else {
             if (currentIndex === -1) {
-                newChatIds.push(chat_id);
+                if (this.loading) {
+                    console.error('[vl] skip add while getChats', update);
+                    // TODO: check and add if within loaded part
+                } else {
+                    newChatIds.push(chat_id);
+                }
             }
         }
 
@@ -339,23 +332,22 @@ class DialogsList extends React.Component {
     };
 
     onLoadPrev() {
-        this.setState({
-            offset: Math.max(this.state.offset - CHAT_SLICE_LIMIT, 0)
-        });
+
     }
 
-    async onLoadNext(replace = false) {
+    async onLoadNext(replace = false, limit = CHAT_SLICE_LIMIT) {
         const { type } = this.props;
-        const { offset, chats, chatList } = this.state;
+        const { chats, chatList } = this.state;
 
-        if (chats && offset + 2 * CHAT_SLICE_LIMIT < chats.length) {
-            this.setState({
-                offset: offset + CHAT_SLICE_LIMIT
-            });
+        // console.log('[folders] onLoadNext', chatList, limit);
+
+        if (this.loading) {
+            // console.log('[folders] onLoadNext cancel loading', chatList);
             return;
         }
 
-        if (this.loading) {
+        if (this.loaded) {
+            // console.log('[folders] onLoadNext cancel loaded', chatList);
             return;
         }
 
@@ -369,7 +361,9 @@ class DialogsList extends React.Component {
             }
         }
 
-        if (type === 'chatListMain') console.log('[p] GETCHATS start', type, offsetOrder, offsetChatId);
+        const reqId = new Date();
+        this.reqId = reqId;
+        // if (type === 'chatListMain') console.log('[folders] GETCHATS start', type, offsetOrder, offsetChatId);
         this.loading = true;
         const result = await TdLibController.send({
             '@type': 'getChats',
@@ -383,11 +377,18 @@ class DialogsList extends React.Component {
                 TdLibController.clientUpdate({ '@type': 'clientUpdateDialogsReady', list: chatList });
             }
         });
-        if (type === 'chatListMain') console.log('[p] GETCHATS stop', replace, type, result);
+        // if (type === 'chatListMain') console.log('[folders] GETCHATS stop', replace, type, result);
+
+        if (reqId !== this.reqId) {
+            // console.log('[folders] onLoadNext cancel reqId', chatList);
+            return;
+        }
 
         if (result.chat_ids.length > 0 && result.chat_ids[0] === offsetChatId) {
             result.chat_ids.shift();
         }
+
+        this.loaded = !result.chat_ids.length;
 
         if (replace) {
             this.replaceChats(result.chat_ids, () => {
@@ -395,7 +396,7 @@ class DialogsList extends React.Component {
                 this.saveCache();
 
                 if (result.chat_ids.length < CHAT_SLICE_LIMIT) {
-                    this.onLoadNext();
+                    this.onLoadNext(false, CHAT_SLICE_LIMIT - result.chat_ids.length);
                 }
 
                 const list = this.listRef.current.getListRef().current;
@@ -407,6 +408,10 @@ class DialogsList extends React.Component {
             this.appendChats(result.chat_ids, () => {
                 // console.log('DialogsList.onLoadNext setState stop', offsetChatId, offsetOrder);
                 this.loadChatContents(result.chat_ids);
+
+                if (result.chat_ids.length && result.chat_ids.length < limit) {
+                    this.onLoadNext(false, limit - result.chat_ids.length);
+                }
             });
         }
     }
@@ -425,11 +430,11 @@ class DialogsList extends React.Component {
         const { chats } = this.state;
 
         const newChats = (chats || []).concat(chatIds);
-        this.setState({ chats: newChats, offset: newChats.length - 2 * CHAT_SLICE_LIMIT }, callback);
+        this.setState({ chats: newChats }, callback);
     }
 
     replaceChats(chats, callback) {
-        this.setState({ chats, offset: 0 }, callback);
+        this.setState({ chats }, callback);
     }
 
     scrollToTop() {
@@ -449,7 +454,7 @@ class DialogsList extends React.Component {
 
     render() {
         const { open, cacheItems, showArchive, archiveTitle } = this.props;
-        const { chats, offset, chatList } = this.state;
+        const { chats, chatList } = this.state;
 
         // console.log('[dl] render', type, open, chats, cacheChats);
         if (!open) return null;
@@ -464,9 +469,6 @@ class DialogsList extends React.Component {
                 }
             });
             this.source = chats;
-            // dialogs = chats.slice(offset, offset + 2 * CHAT_SLICE_LIMIT).map(x => (
-            //     <Dialog key={x} chatId={x} isLastPinned={x === lastPinnedId} hidden={this.hiddenChats.has(x)} />
-            // ));
         } else if (cacheItems) {
             let lastPinnedId = 0;
             cacheItems.forEach(x => {
@@ -488,6 +490,8 @@ class DialogsList extends React.Component {
                 dialogs = Array.from(Array(10)).map((x, index) => <DialogPlaceholder key={index} index={index} />);
             }
         }
+
+        // console.log('[vl] render', this.source);
 
         return (
             <VirtualizedList
