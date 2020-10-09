@@ -179,8 +179,8 @@ window.RLottie = (function () {
         rlPlayer.fileId = fileId;
         rlPlayer.reqId = ++reqId;
         rlPlayer.el = el;
-        rlPlayer.width = pic_width * curDeviceRatio;
-        rlPlayer.height = pic_height * curDeviceRatio;
+        rlPlayer.width = Math.trunc(pic_width * curDeviceRatio);
+        rlPlayer.height = Math.trunc(pic_height * curDeviceRatio);
         rlPlayer.imageData = new ImageData(rlPlayer.width, rlPlayer.height);
         rlottie.players[reqId] = rlPlayer;
 
@@ -437,6 +437,12 @@ window.RLottie = (function () {
         const data = rlottie.frames.get(dataKey);
         const rlPlayer = rlottie.players[reqId];
 
+        let frameNo = 0;
+        if (data) {
+            data.fps = fps;
+            data.frameCount = frameCount;
+        }
+
         if (rlPlayer) {
             const queueLength = rlPlayer.queueLength || fps / 4;
 
@@ -446,16 +452,10 @@ window.RLottie = (function () {
             rlPlayer.frameInterval = 1000 / fps;
             rlPlayer.frameQueue = new FrameQueue(queueLength);
             rlPlayer.nextFrameNo = false;
-        }
 
-        let frameNo = 0;
-        if (data) {
-            data.fps = fps;
-            data.frameCount = frameCount;
+            setupMainLoop();
+            requestFrame(reqId, frameNo, rlPlayer.segmentId);
         }
-
-        setupMainLoop();
-        requestFrame(reqId, frameNo, rlPlayer.segmentId);
     }
 
     rlottie.init = function(el, options) {
@@ -580,6 +580,7 @@ window.RLottie = (function () {
     }
 
     rlottie.playSegments = function (reqId, segments, forceFlag) {
+        // console.log('[rlottie] playSegments', segments);
         const rlPlayer = rlottie.players[reqId];
         if (!rlPlayer) return;
 
