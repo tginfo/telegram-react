@@ -331,7 +331,7 @@ class SharedMediaContent extends React.Component {
         MessageStore.on('clientUpdateChatMedia', this.onClientUpdateChatMedia);
         MessageStore.on('updateNewMessage', this.onUpdateNewMessage);
         MessageStore.on('updateDeleteMessages', this.onUpdateDeleteMessages);
-        // MessageStore.on('updateMessageContent', this.onUpdateMessageContent);
+        MessageStore.on('updateMessageContent', this.onUpdateMessageContent);
         MessageStore.on('updateMessageSendSucceeded', this.onUpdateMessageSend);
         MessageStore.on('updateMessageSendFailed', this.onUpdateMessageSend);
     }
@@ -343,10 +343,23 @@ class SharedMediaContent extends React.Component {
         MessageStore.off('clientUpdateChatMedia', this.onClientUpdateChatMedia);
         MessageStore.off('updateNewMessage', this.onUpdateNewMessage);
         MessageStore.off('updateDeleteMessages', this.onUpdateDeleteMessages);
-        // MessageStore.off('updateMessageContent', this.onUpdateMessageContent);
+        MessageStore.off('updateMessageContent', this.onUpdateMessageContent);
         MessageStore.off('updateMessageSendSucceeded', this.onUpdateMessageSend);
         MessageStore.off('updateMessageSendFailed', this.onUpdateMessageSend);
     }
+
+    onUpdateMessageContent = update => {
+        const { chat_id, message_id } = update;
+        const { chatId } = this.props;
+
+        if (chatId !== chat_id) return;
+
+        const { items, selectedIndex } = this.state;
+        if (!items.some(x => x.id === message_id)) return;
+
+        const media = MessageStore.getMedia(chatId);
+        this.setMediaState(media, selectedIndex);
+    };
 
     onWindowResize = event => {
         const { items, scrollTop } = this.state;
@@ -443,6 +456,8 @@ class SharedMediaContent extends React.Component {
         const offsetTop = list.offsetTop;
         const viewportHeight = list.offsetParent.offsetHeight;
 
+        console.log('[vl] setMediaState', [items, photoAndVideo]);
+
         this.setState({
             selectedIndex,
             renderIds: this.getRenderIds(items, viewportHeight, scrollTop - offsetTop),
@@ -476,10 +491,16 @@ class SharedMediaContent extends React.Component {
 
     onClientUpdateMediaTab = update => {
         const { chatId: currentChatId } = this.props;
-        const { photoAndVideo, document, audio, url, voiceNote } = this.state;
-
         const { chatId, index: selectedIndex } = update;
         if (chatId !== currentChatId) return;
+
+        const media = MessageStore.getMedia(currentChatId);
+
+        const photoAndVideo = media ? media.photoAndVideo : [];
+        const document = media ? media.document : [];
+        const audio = media ? media.audio : [];
+        const url = media ? media.url : [];
+        const voiceNote = media ? media.voiceNote : [];
 
         let source = [];
         if (selectedIndex === 1) {
@@ -500,6 +521,11 @@ class SharedMediaContent extends React.Component {
             renderIds: new Map(),
             rowHeight: SharedMediaContent.getRowHeight(selectedIndex),
             items: source.slice(0, SHARED_MESSAGE_SLICE_LIMIT),
+            photoAndVideo,
+            document,
+            audio,
+            url,
+            voiceNote,
             params: {
                 loading: false,
                 completed: false,

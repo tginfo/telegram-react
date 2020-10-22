@@ -10,8 +10,9 @@
     flex: 1 1 0;
     display: flex;
     position: relative;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
+    /*overflow-y: auto;*/
+    /*-webkit-overflow-scrolling: touch;*/
 }
 
 .messages-list-wrapper {
@@ -24,7 +25,7 @@
     -webkit-overflow-scrolling: touch;
     transform: translateZ(0);
     will-change: transform;
-    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 1) 15px);
+    /*mask-image: linear-gradient(to top, rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 1) 15px);*/
 }
 
 .messages-list-top {
