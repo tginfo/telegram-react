@@ -8,19 +8,26 @@
 .shared-media-content {
     transform: translateZ(0);
     will-change: transform;
-    padding: 0 14px;
-    min-height: calc(100% - 44px);
+    padding: 8px;
+    min-height: calc(100% - 44px - 2 * 8px);
 }
 
 .shared-media-virt-content {
     transform: translateZ(0);
     will-change: transform;
     position: relative;
-    min-height: calc(100% - 44px);
+    min-height: calc(100% - 44px - 2 * 8px);
+    margin: 8px 0;
 }
 
 .shared-media-virt-item {
     position: absolute;
-    left: 7px;
-    right: 7px;
+    left: 8px;
+    right: 8px;
+}
+
+.groups-in-common-item {
+    padding: 12px;
+    margin-bottom: 4px;
+    border-radius: 10px;
 }
