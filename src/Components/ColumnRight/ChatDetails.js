@@ -427,6 +427,28 @@ class ChatDetails extends React.Component {
             }
         }
 
+        let openChatTitle = t('SendMessage');
+        if (isChannelChat(chatId)) {
+            openChatTitle = t('OpenChannel');
+        } else if (isGroupChat(chatId)) {
+            openChatTitle = t('OpenGroup');
+        }
+
+        let chatUrl = ''
+        if (username) {
+            if (isPrivateChat(chatId)) {
+                chatUrl = username;
+            } else {
+                const tMeUrl = OptionStore.get('t_me_url')
+                    .value
+                    .toLowerCase()
+                    .replace('https://', '')
+                    .replace('http://', '');
+
+                chatUrl = tMeUrl + username;
+            }
+        }
+
         const content = (
             <>
                 <ChatDetailsHeader
@@ -456,7 +478,7 @@ class ChatDetails extends React.Component {
                                         </ListItemIcon>
                                         <ListItemText
                                             primary={bio}
-                                            secondary={t('Bio')}
+                                            secondary={isPrivateChat(chatId) ? t('Bio') : t('DescriptionPlaceholder')}
                                             style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
                                         />
                                     </ListItem>
@@ -469,10 +491,10 @@ class ChatDetails extends React.Component {
                                         <ListItemText
                                             primary={
                                                 <Typography variant='inherit' noWrap>
-                                                    {username}
+                                                    {chatUrl}
                                                 </Typography>
                                             }
-                                            secondary={t('Username')}
+                                            secondary={isPrivateChat(chatId) ? t('Username') : t('InviteLink')}
                                         />
                                     </ListItem>
                                 )}
@@ -494,12 +516,12 @@ class ChatDetails extends React.Component {
                                     </>
                                 )}
                                 <NotificationsListItem chatId={chatId} />
-                                {popup && !isGroup && (
+                                {popup && (
                                     <ListItem button className='list-item-rounded' alignItems='flex-start' onClick={this.handleOpenChat}>
                                         <ListItemText
                                             primary={
                                                 <Typography color='primary' variant='inherit' noWrap>
-                                                    {t('SendMessage').toUpperCase()}
+                                                    {openChatTitle.toUpperCase()}
                                                 </Typography>
                                             }
                                             style={{ paddingLeft: 40 }}
@@ -513,127 +535,6 @@ class ChatDetails extends React.Component {
                     <div ref={this.dividerRef}/>
                     <SharedMediaTabs chatId={chatId} onClick={this.handleTabClick}/>
                     <SharedMediaContent ref={this.mediaRef} chatId={chatId} popup={popup}/>
-                    {/*{(photoCount > 0 ||*/}
-                    {/*    videoCount > 0 ||*/}
-                    {/*    documentCount > 0 ||*/}
-                    {/*    audioCount > 0 ||*/}
-                    {/*    urlCount > 0 ||*/}
-                    {/*    voiceAndVideoNoteCount > 0 ||*/}
-                    {/*    groupInCommonCount > 0) && (*/}
-                    {/*    <>*/}
-                            {/*<Divider />*/}
-                            {/*<List className='shared-media-list'>*/}
-                            {/*    {photoCount > 0 && (*/}
-                            {/*        <ListItem button className='list-item' onClick={onOpenSharedPhotos}>*/}
-                            {/*            <ListItemIcon>*/}
-                            {/*                <PhotoIcon />*/}
-                            {/*            </ListItemIcon>*/}
-                            {/*            <ListItemText*/}
-                            {/*                primary={*/}
-                            {/*                    <Typography variant='inherit' noWrap>*/}
-                            {/*                        {photoCount === 1 ? '1 photo' : `${photoCount} photos`}*/}
-                            {/*                    </Typography>*/}
-                            {/*                }*/}
-                            {/*            />*/}
-                            {/*        </ListItem>*/}
-                            {/*    )}*/}
-                            {/*    {videoCount > 0 && (*/}
-                            {/*        <ListItem button className='list-item' onClick={onOpenSharedVideos}>*/}
-                            {/*            <ListItemIcon>*/}
-                            {/*                <VideocamIcon />*/}
-                            {/*            </ListItemIcon>*/}
-                            {/*            <ListItemText*/}
-                            {/*                primary={*/}
-                            {/*                    <Typography variant='inherit' noWrap>*/}
-                            {/*                        {videoCount === 1 ? '1 video' : `${videoCount} videos`}*/}
-                            {/*                    </Typography>*/}
-                            {/*                }*/}
-                            {/*            />*/}
-                            {/*        </ListItem>*/}
-                            {/*    )}*/}
-                            {/*    {documentCount > 0 && (*/}
-                            {/*        <ListItem button className='list-item' onClick={onOpenSharedDocuments}>*/}
-                            {/*            <ListItemIcon>*/}
-                            {/*                <InsertDriveFileIcon />*/}
-                            {/*            </ListItemIcon>*/}
-                            {/*            <ListItemText*/}
-                            {/*                primary={*/}
-                            {/*                    <Typography variant='inherit' noWrap>*/}
-                            {/*                        {documentCount === 1 ? '1 file' : `${documentCount} files`}*/}
-                            {/*                    </Typography>*/}
-                            {/*                }*/}
-                            {/*            />*/}
-                            {/*        </ListItem>*/}
-                            {/*    )}*/}
-                            {/*    {audioCount > 0 && (*/}
-                            {/*        <ListItem button className='list-item' onClick={onOpenSharedAudios}>*/}
-                            {/*            <ListItemIcon>*/}
-                            {/*                <HeadsetIcon />*/}
-                            {/*            </ListItemIcon>*/}
-                            {/*            <ListItemText*/}
-                            {/*                primary={*/}
-                            {/*                    <Typography variant='inherit' noWrap>*/}
-                            {/*                        {audioCount === 1 ? '1 audio file' : `${audioCount} audio files`}*/}
-                            {/*                    </Typography>*/}
-                            {/*                }*/}
-                            {/*            />*/}
-                            {/*        </ListItem>*/}
-                            {/*    )}*/}
-                            {/*    {urlCount > 0 && (*/}
-                            {/*        <ListItem button className='list-item' onClick={onOpenSharedLinks}>*/}
-                            {/*            <ListItemIcon>*/}
-                            {/*                <InsertLinkIcon />*/}
-                            {/*            </ListItemIcon>*/}
-                            {/*            <ListItemText*/}
-                            {/*                primary={*/}
-                            {/*                    <Typography variant='inherit' noWrap>*/}
-                            {/*                        {urlCount === 1 ? '1 shared link' : `${urlCount} shared links`}*/}
-                            {/*                    </Typography>*/}
-                            {/*                }*/}
-                            {/*            />*/}
-                            {/*        </ListItem>*/}
-                            {/*    )}*/}
-                            {/*    {voiceAndVideoNoteCount > 0 && (*/}
-                            {/*        <ListItem button className='list-item' onClick={onOpenSharedVoiceNotes}>*/}
-                            {/*            <ListItemIcon>*/}
-                            {/*                <MicIcon />*/}
-                            {/*            </ListItemIcon>*/}
-                            {/*            <ListItemText*/}
-                            {/*                primary={*/}
-                            {/*                    <Typography variant='inherit' noWrap>*/}
-                            {/*                        {voiceAndVideoNoteCount === 1*/}
-                            {/*                            ? '1 voice message'*/}
-                            {/*                            : `${voiceAndVideoNoteCount} voice messages`}*/}
-                            {/*                    </Typography>*/}
-                            {/*                }*/}
-                            {/*            />*/}
-                            {/*        </ListItem>*/}
-                            {/*    )}*/}
-                            {/*    {groupInCommonCount > 0 && (*/}
-                            {/*        <ListItem button className='list-item' onClick={onOpenGroupInCommon}>*/}
-                            {/*            <ListItemIcon>*/}
-                            {/*                <GroupIcon />*/}
-                            {/*            </ListItemIcon>*/}
-                            {/*            <ListItemText*/}
-                            {/*                primary={*/}
-                            {/*                    <Typography variant='inherit' noWrap>*/}
-                            {/*                        {groupInCommonCount === 1*/}
-                            {/*                            ? '1 group in common'*/}
-                            {/*                            : `${groupInCommonCount} groups in common`}*/}
-                            {/*                    </Typography>*/}
-                            {/*                }*/}
-                            {/*            />*/}
-                            {/*        </ListItem>*/}
-                            {/*    )}*/}
-                            {/*</List>*/}
-                    {/*    </>*/}
-                    {/*)}*/}
-                    {/*{items.length > 0 && (*/}
-                    {/*    <>*/}
-                    {/*        <Divider />*/}
-                    {/*        <List>{items}</List>*/}
-                    {/*    </>*/}
-                    {/*)}*/}
                 </div>
             </>
         );

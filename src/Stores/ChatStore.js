@@ -230,17 +230,6 @@ class ChatStore extends EventEmitter {
                 this.emitFastUpdate(update);
                 break;
             }
-            case 'updateChatPinnedMessage': {
-                const { chat_id, pinned_message_id } = update;
-
-                const chat = this.get(chat_id);
-                if (chat) {
-                    this.assign(chat, { pinned_message_id });
-                }
-
-                this.emitFastUpdate(update);
-                break;
-            }
             case 'updateChatPosition': {
                 const { chat_id, position } = update;
 
@@ -412,10 +401,6 @@ class ChatStore extends EventEmitter {
                 this.setClientData(chatId, clientData);
                 this.saveClientData();
 
-                this.emitUpdate(update);
-                break;
-            }
-            case 'clientUpdateUnpin': {
                 this.emitUpdate(update);
                 break;
             }

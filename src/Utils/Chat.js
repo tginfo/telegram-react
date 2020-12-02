@@ -7,7 +7,7 @@
 
 import React from 'react';
 import dateFormat from '../Utils/Date';
-import { getUserFullName, getUserShortName, getUserStatus, isUserOnline } from './User';
+import { getUserFullName, getUserShortName, getUserStatus, isMeUser, isUserOnline } from './User';
 import { getSupergroupStatus } from './Supergroup';
 import { getBasicGroupStatus } from './BasicGroup';
 import { getLetters } from './Common';
@@ -15,9 +15,12 @@ import { getContent, isMessageUnread } from './Message';
 import { isServiceMessage } from './ServiceMessage';
 import { formatPhoneNumber } from './Phone';
 import { getChannelStatus } from './Channel';
-import { SERVICE_NOTIFICATIONS_USER_ID, SHARED_MESSAGE_SLICE_LIMIT } from '../Constants';
+import { loadReplyContents } from './File';
+import { SERVICE_NOTIFICATIONS_USER_ID } from '../Constants';
 import BasicGroupStore from '../Stores/BasicGroupStore';
 import ChatStore from '../Stores/ChatStore';
+import FileStore from '../Stores/FileStore';
+import LStore from '../Stores/LocalizationStore';
 import MessageStore from '../Stores/MessageStore';
 import NotificationStore from '../Stores/NotificationStore';
 import SupergroupStore from '../Stores/SupergroupStore';
@@ -149,13 +152,14 @@ export function positionListEquals(p1, p2) {
     return chatListEquals(list1, list2);
 }
 
-export function canUnpinMessage(chatId) {
-    const chat = ChatStore.get(chatId);
-    if (!chat) return false;
+export function hasOnePinnedMessage(chatId) {
+    const media = MessageStore.getMedia(chatId);
+    if (!media) return false;
 
-    const { pinned_message_id } = chat;
+    const { pinned } = media;
+    if (!pinned) return false;
 
-    return pinned_message_id > 0;
+    return pinned.length === 1;
 }
 
 export function isChatArchived(chatId) {
@@ -386,21 +390,53 @@ function getChatTypingString(chatId) {
 function getMessageSenderFullName(message, t = k => k) {
     if (!message) return null;
     if (isServiceMessage(message)) return null;
-    if (!message.sender_user_id) return null;
+    if (!message.sender) return null;
 
-    return getUserFullName(message.sender_user_id, null, t);
+    switch (message.sender['@type']) {
+        case 'messageSenderUser': {
+            return getUserFullName(message.sender.user_id, null, t);
+        }
+    }
+
+    return getChatTitle(message.sender.chat_id, false, t);
 }
 
 function getMessageSenderName(message, t = k => k) {
     if (!message) return null;
     if (isServiceMessage(message)) return null;
 
-    const chat = ChatStore.get(message.chat_id);
-    if (chat && chat.type['@type'] !== 'chatTypeBasicGroup' && chat.type['@type'] !== 'chatTypeSupergroup') {
-        return null;
+    const { chat_id, sender } = message;
+
+    const chat = ChatStore.get(chat_id);
+    if (!chat) return null;
+
+    switch (chat.type['@type']) {
+        case 'chatTypePrivate':
+        case 'chatTypeSecret': {
+            return null;
+        }
+        case 'chatTypeBasicGroup':
+        case 'chatTypeSupergroup': {
+            if (isChannelChat(chat_id)) {
+                return null;
+            }
+
+            switch (sender['@type']) {
+                case 'messageSenderUser': {
+                    if (isMeUser(sender.user_id)) {
+                        return t('FromYou');
+                    }
+
+                    return getUserShortName(sender.user_id, t);
+                }
+                case 'messageSenderChat': {
+                    return getChatTitle(sender.chat_id, false, t);
+                }
+            }
+        }
     }
 
-    return getUserShortName(message.sender_user_id, t);
+    return null;
 }
 
 function getLastMessageSenderName(chat, t = k => k) {
@@ -515,7 +551,7 @@ function getMessageDate(message) {
     const dayStart = new Date();
     dayStart.setHours(0, 0, 0, 0);
     if (date > dayStart) {
-        return dateFormat(date, 'H:MM');
+        return dateFormat(date, LStore.formatterDay);
     }
 
     const now = new Date();
@@ -523,10 +559,11 @@ function getMessageDate(message) {
     const weekStart = now.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(now.setDate(weekStart));
     if (date > monday) {
-        return dateFormat(date, 'ddd');
+        return date.toLocaleString(LStore.i18n.language, { weekday: 'short' });
+        //return dateFormat(date, 'ddd');
     }
 
-    return dateFormat(date, 'd.mm.yyyy');
+    return dateFormat(date, LStore.formatterYear);
 }
 
 function getLastMessageDate(chat) {
@@ -756,9 +793,11 @@ function isGroupChat(chatId) {
     if (!chat.type) return false;
 
     switch (chat.type['@type']) {
-        case 'chatTypeBasicGroup':
-        case 'chatTypeSupergroup': {
+        case 'chatTypeBasicGroup': {
             return true;
+        }
+        case 'chatTypeSupergroup': {
+            return !chat.type.is_channel;
         }
         case 'chatTypePrivate':
         case 'chatTypeSecret': {
@@ -776,9 +815,7 @@ function isChannelChat(chatId) {
 
     switch (chat.type['@type']) {
         case 'chatTypeSupergroup': {
-            const supergroup = SupergroupStore.get(chat.type.supergroup_id);
-
-            return supergroup && supergroup.is_channel;
+            return chat.type.is_channel;
         }
         case 'chatTypeBasicGroup':
         case 'chatTypePrivate':
@@ -1049,13 +1086,16 @@ function getGroupChatMembers(chatId) {
 }
 
 export async function getChatMedia(chatId) {
+    // return;
+
     const chat = ChatStore.get(chatId);
     if (!chat) return null;
 
-    console.log('[media] getChatMedia start', chatId);
+    // console.log('[media] getChatMedia start', chatId);
     const promises = [];
 
     const limit = 100;
+    promises.push(getChatFullInfoRequest(chatId) || Promise.resolve(null));
     promises.push(TdLibController.send({
         '@type': 'searchChatMessages',
         chat_id: chatId,
@@ -1106,27 +1146,52 @@ export async function getChatMedia(chatId) {
         limit,
         filter: { '@type': 'searchMessagesFilterVoiceNote' }
     }));
+    promises.push(TdLibController.send({
+        '@type': 'searchChatMessages',
+        chat_id: chatId,
+        query: '',
+        sender_user_id: 0,
+        from_message_id: 0,
+        offset: 0,
+        limit,
+        filter: { '@type': 'searchMessagesFilterPinned' }
+    }));
     if (isPrivateChat(chatId) && !isMeChat(chatId)) {
-        const userId = getChatUserId(chatId);
-
         promises.push(TdLibController.send({
             '@type': 'getGroupsInCommon',
-            user_id: userId,
+            user_id: getChatUserId(chatId),
             offset_chat_id: 0,
             limit
         }));
+    } else {
+        promises.push(Promise.resolve(null));
+    }
+    if (isSupergroup(chatId) && !isChannelChat(chatId)){
+        promises.push(TdLibController.send({
+            '@type': 'getSupergroupMembers',
+            supergroup_id: getSupergroupId(chatId),
+            filter: { '@type': 'supergroupMembersFilterRecent' },
+            offset: 0,
+            limit: 200
+        }));
     }
 
-    const [photoAndVideo, document, audio, url, voiceNote, groupsInCommon] = await Promise.all(promises);
+    const [fullInfo, photoAndVideo, document, audio, url, voiceNote, pinned, groupsInCommon, supergroupMembers] = await Promise.all(promises);
     const media = {
+        fullInfo,
         photoAndVideo: photoAndVideo.messages,
         document: document.messages,
         audio: audio.messages,
         url: url.messages,
         voiceNote: voiceNote.messages,
-        groupsInCommon: groupsInCommon ? groupsInCommon.chat_ids.map(x => ChatStore.get(x)) : []
+        pinned: pinned.messages,
+        groupsInCommon: groupsInCommon ? groupsInCommon.chat_ids.map(x => ChatStore.get(x)) : [],
+        supergroupMembers
     }
-    console.log('[media] getChatMedia stop', chatId, media);
+    // console.log('[media] getChatMedia stop', chatId, media);
+
+    const store = FileStore.getStore();
+    loadReplyContents(store, pinned.messages);
 
     TdLibController.clientUpdate({
         '@type': 'clientUpdateChatMedia',
@@ -1135,7 +1200,7 @@ export async function getChatMedia(chatId) {
     });
 }
 
-async function getChatFullInfo(chatId) {
+export async function getChatFullInfoRequest(chatId) {
     const chat = ChatStore.get(chatId);
     if (!chat) return null;
 
@@ -1143,26 +1208,21 @@ async function getChatFullInfo(chatId) {
     if (!type) return null;
 
     switch (type['@type']) {
-        case 'chatTypePrivate': {
-            return await TdLibController.send({
-                '@type': 'getUserFullInfo',
-                user_id: type.user_id
-            });
-        }
+        case 'chatTypePrivate':
         case 'chatTypeSecret': {
-            return await TdLibController.send({
+            return TdLibController.send({
                 '@type': 'getUserFullInfo',
                 user_id: type.user_id
             });
         }
         case 'chatTypeBasicGroup': {
-            return await TdLibController.send({
+            return TdLibController.send({
                 '@type': 'getBasicGroupFullInfo',
                 basic_group_id: type.basic_group_id
             });
         }
         case 'chatTypeSupergroup': {
-            return await TdLibController.send({
+            return TdLibController.send({
                 '@type': 'getSupergroupFullInfo',
                 supergroup_id: type.supergroup_id
             });
@@ -1170,6 +1230,13 @@ async function getChatFullInfo(chatId) {
     }
 
     return null;
+}
+
+async function getChatFullInfo(chatId) {
+    const request = getChatFullInfoRequest(chatId);
+    if (!request) return null;
+
+    return await request;
 }
 
 function hasBasicGroupId(chatId, basicGroupId) {

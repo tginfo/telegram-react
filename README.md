@@ -10,25 +10,33 @@ The app is based on the ReactJS JavaScript framework and TDLib (Telegram Databas
 Original repo is here: https://github.com/evgeny-nadymov/telegram-react
 
 ### Running locally
-Install [node.js](http://nodejs.org/).
+1. **Obtaining Telegram api keys.**
 
-Install dependencies with:
+Please visit this [page](https://github.com/telegramdesktop/tdesktop/blob/dev/docs/api_credentials.md) for details.
 
-```lang=bash
+2. **Setup .env file.**
+
+Manually copy Telegram api keys from previous step into REACT_TELEGRAM_API_ID and REACT_TELEGRAM_API_HASH at .env file.
+
+3. **Install node.js & npm.**
+Probably, you should use [nvm](https://github.com/nvm-sh/nvm).
+
+4. **Install dependencies.**
+
+```bash
 npm ci
 ```
+All TDLib files will be installed into node_modules/tdweb/dist/ folder. 
 
-This will install all the needed dependencies.
+5. **Manually copy TDLib files into the public folder.**
 
-All TDLib files will be installed into node_modules/tdweb/dist/ folder. Manually copy them into the public folder with:
-
-```lang=bash
+```bash
 cp node_modules/tdweb/dist/* public/
 ```
 
-Run the app in development mode with:
+6. **Run the app in development mode.**
 
-```lang=bash
+```bash
 npm run start
 ```
 
@@ -36,20 +44,43 @@ Open http://localhost:3000 to view it in the browser.
 
 ### Deploying to GitHub Pages
 
-1. **Update *homepage* property at the app's `package.json` file.**
+1. **Obtaining Telegram api keys.**
 
-Define its value to be the string `http://{username}.github.io/{repo-name}`, where `{username}` is your GitHub username, and `{repo-name}` is the name of the GitHub repository. Since our GitHub username is `tginfo` and the name of our GitHub repository is `telegram-react`, I added the following property:
+Please visit this [page](https://github.com/telegramdesktop/tdesktop/blob/dev/docs/api_credentials.md) for details.
+
+2. **Setup .env file.**
+
+Manually copy Telegram api keys from previous step into REACT_TELEGRAM_API_ID and REACT_TELEGRAM_API_HASH at .env file.
+
+3. **Update *homepage* property at the app's `package.json` file.**
+
+Define its value to be the string `https://{username}.github.io/{repo-name}`, where `{username}` is your GitHub username, and `{repo-name}` is the name of the GitHub repository. Since our GitHub username is `tginfo` and the name of our GitHub repository is `telegram-react`, we added the following property:
     
 ```js
 //...
 "homepage": "https://tginfo.github.io/telegram-react"
 ```
-    
-2. **Generate a *production build* of your app and deploy it to GitHub Pages.**
 
+4. **Generate a *production build* of your app and deploy it to GitHub Pages.**
+
+```bash
+npm run deploy
 ```
-$ npm run deploy
+
+### Running in a Docker container
+
+1. **Obtaining Telegram api keys.**
+
+Please visit this [page](https://github.com/telegramdesktop/tdesktop/blob/dev/docs/api_credentials.md) for details.
+
+2. **Provide your Telegram api keys as build arguments.**
+
+```bash
+docker build . --build-arg TELEGRAM_API_ID=0000000 --build-arg TELEGRAM_API_HASH=00000000000000000
 ```
+
+The Docker build will perform all the necessary steps to get a working build of Telegram-React.
+
 ### References
 
 1. [Deploying a React App (created using create-react-app) to GitHub Pages](https://github.com/gitname/react-gh-pages)

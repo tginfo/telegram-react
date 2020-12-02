@@ -13,22 +13,74 @@ import SafeLink from '../Components/Additional/SafeLink';
 import dateFormat from '../Utils/Date';
 import { searchChat, setMediaViewerContent } from '../Actions/Client';
 import { getChatTitle, isMeChat } from './Chat';
-import { openUser } from './../Actions/Client';
+import { openUser } from '../Actions/Client';
 import { getFitSize, getPhotoSize, getSize } from './Common';
 import { download, saveOrDownload, supportsStreaming } from './File';
-import { getAudioSubtitle, getAudioTitle } from './Media';
+import { getAudioTitle } from './Media';
 import { getDecodedUrl } from './Url';
 import { getServiceMessageContent } from './ServiceMessage';
-import { getUserFullName } from './User';
+import { getUserFullName, isMeUser } from './User';
 import { getBlockAudio } from './InstantView';
-import { LOCATION_HEIGHT, LOCATION_SCALE, LOCATION_WIDTH, LOCATION_ZOOM, PHOTO_DISPLAY_SIZE, PHOTO_SIZE, PLAYER_AUDIO_2X_MIN_DURATION } from '../Constants';
+import { LOCATION_HEIGHT, LOCATION_SCALE, LOCATION_WIDTH, LOCATION_ZOOM, PHOTO_DISPLAY_SIZE, PHOTO_SIZE, PHOTO_THUMBNAIL_SIZE, PLAYER_AUDIO_2X_MIN_DURATION } from '../Constants';
 import AppStore from '../Stores/ApplicationStore';
 import ChatStore from '../Stores/ChatStore';
 import FileStore from '../Stores/FileStore';
+import LStore from '../Stores/LocalizationStore';
 import MessageStore from '../Stores/MessageStore';
 import PlayerStore from '../Stores/PlayerStore';
 import UserStore from '../Stores/UserStore';
 import TdLibController from '../Controllers/TdLibController';
+
+export function isEmptySelection(selection) {
+    // new line symbol
+    if (selection.length === 1 && selection.charCodeAt(0) === 10) {
+        return true;
+    }
+
+    if (selection.length === 2 && selection.charCodeAt(0) === 10 && selection.charCodeAt(1) === 10) {
+        return true;
+    }
+
+    // console.log('[selection] isBad=false', { selection });
+    return selection.length === 0;
+}
+
+export function senderEquals(lhs, rhs) {
+    if (!lhs && !rhs) return true;
+    if (!lhs && rhs) return false;
+    if (lhs && !rhs) return false;
+
+    switch (lhs['@type']) {
+        case 'messageSenderUser': {
+            return lhs.user_id === rhs.user_id;
+        }
+        case 'messageSenderChat': {
+            return lhs.chat_id === rhs.chat_id;
+        }
+    }
+
+    return false;
+}
+
+export function forwardInfoEquals(lhs, rhs) {
+    if (!lhs && !rhs) return true;
+    if (!lhs && rhs) return false;
+    if (lhs && !rhs) return false;
+
+    switch (lhs.origin['@type']) {
+        case 'messageForwardOriginChannel': {
+            return lhs.origin.chat_id === rhs.origin.chat_id;
+        }
+        case 'messageForwardOriginHiddenUser': {
+            return lhs.origin.sender_name === rhs.origin.sender_name;
+        }
+        case 'messageForwardOriginUser': {
+            return lhs.origin.sender_user_id === rhs.origin.sender_user_id;
+        }
+    }
+
+    return false;
+}
 
 export function isMetaBubble(chatId, messageId) {
     const message = MessageStore.get(chatId, messageId);
@@ -124,12 +176,16 @@ function getAuthor(message, t = k => k) {
 function getTitle(message, t = k => k) {
     if (!message) return null;
 
-    const { sender_user_id, chat_id } = message;
+    const { sender, chat_id } = message;
 
-    if (sender_user_id) {
-        const user = UserStore.get(sender_user_id);
+    if (!sender) {
+        return null;
+    }
+
+    if (sender.user_id) {
+        const user = UserStore.get(sender.user_id);
         if (user) {
-            return getUserFullName(sender_user_id, null, t);
+            return getUserFullName(sender.user_id, null, t);
         }
     }
 
@@ -402,14 +458,15 @@ function getDate(date) {
 
     const d = new Date(date * 1000);
 
-    return dateFormat(d, 'H:MM'); //date.toDateString();
+    return dateFormat(d, LStore.formatterDay);
 }
 
 function getDateHint(date) {
     if (!date) return null;
 
     const d = new Date(date * 1000);
-    return dateFormat(d, 'H:MM:ss d.mm.yyyy'); //date.toDateString();
+
+    return LStore.formatString('formatDateAtTime', dateFormat(d, LStore.formatterYear), dateFormat(d, LStore.formatterDay));
 }
 
 function isForwardOriginHidden(forwardInfo) {
@@ -471,12 +528,6 @@ function getUnread(message) {
     return chat.last_read_outbox_message_id < message.id;
 }
 
-function getSenderUserId(message) {
-    if (!message) return null;
-
-    return message.sender_user_id;
-}
-
 function filterDuplicateMessages(result, history) {
     if (result.messages.length === 0) return;
     if (history.length === 0) return;
@@ -489,14 +540,51 @@ function filterDuplicateMessages(result, history) {
     result.messages = result.messages.filter(x => !map.has(x.id));
 }
 
-function filterMessages(messages) {
-    return messages.filter(x => x.content['@type'] !== 'messageChatUpgradeTo');
+export function getCallContent(sender, content) {
+    const { is_video, discard_reason } = content;
+    const isMissed = discard_reason && discard_reason['@type'] === 'callDiscardReasonMissed';
+    const isBusy = discard_reason && discard_reason['@type'] === 'callDiscardReasonDeclined';
+    if (isMeUser(sender.user_id)) {
+        if (isMissed) {
+            if (is_video) {
+                return LStore.getString('CallMessageVideoOutgoingMissed');
+            } else {
+                return LStore.getString('CallMessageOutgoingMissed');
+            }
+        } else {
+            if (is_video) {
+                return LStore.getString('CallMessageVideoOutgoing');
+            } else {
+                return LStore.getString('CallMessageOutgoing');
+            }
+        }
+    } else {
+        if (isMissed) {
+            if (is_video) {
+                return LStore.getString('CallMessageVideoIncomingMissed');
+            } else {
+                return LStore.getString('CallMessageIncomingMissed');
+            }
+        } else if (isBusy) {
+            if (is_video) {
+                return LStore.getString('CallMessageVideoIncomingDeclined');
+            } else {
+                return LStore.getString('CallMessageIncomingDeclined');
+            }
+        } else {
+            if (is_video) {
+                return LStore.getString('CallMessageVideoIncoming');
+            } else {
+                return LStore.getString('CallMessageIncoming');
+            }
+        }
+    }
 }
 
 function getContent(message, t = key => key) {
     if (!message) return null;
 
-    const { content } = message;
+    const { content, is_outgoing, sender } = message;
     if (!content) return null;
 
     let caption = '';
@@ -522,7 +610,14 @@ function getContent(message, t = key => key) {
             return getServiceMessageContent(message);
         }
         case 'messageCall': {
-            return t('Call') + caption;
+            const text = getCallContent(sender, content);
+
+            const { duration } = content;
+            if (duration > 0) {
+                return LStore.formatString('CallMessageWithDuration', text, LStore.formatCallDuration(duration));
+            }
+
+            return text;
         }
         case 'messageChatAddMembers': {
             return getServiceMessageContent(message);
@@ -1646,7 +1741,7 @@ export function getReplyMinithumbnail(chatId, messageId) {
     return null;
 }
 
-function getReplyPhotoSize(chatId, messageId) {
+export function getReplyThumbnail(chatId, messageId) {
     const message = MessageStore.get(chatId, messageId);
     if (!message) return;
 
@@ -1672,7 +1767,7 @@ function getReplyPhotoSize(chatId, messageId) {
             const { photo } = content;
             if (!photo) return null;
 
-            return getPhotoSize(photo.sizes);
+            return getPhotoSize(photo.sizes, PHOTO_THUMBNAIL_SIZE);
         }
         case 'messageDocument': {
             const { document } = content;
@@ -1694,7 +1789,7 @@ function getReplyPhotoSize(chatId, messageId) {
             }
 
             if (photo) {
-                return getPhotoSize(photo.sizes);
+                return getPhotoSize(photo.sizes, PHOTO_THUMBNAIL_SIZE);
             }
 
             return null;
@@ -1703,7 +1798,7 @@ function getReplyPhotoSize(chatId, messageId) {
             const { photo } = content;
             if (!photo) return null;
 
-            return getPhotoSize(photo.sizes);
+            return getPhotoSize(photo.sizes, PHOTO_THUMBNAIL_SIZE);
         }
         case 'messageSticker': {
             const { sticker } = content;
@@ -1717,7 +1812,7 @@ function getReplyPhotoSize(chatId, messageId) {
             if (web_page) {
                 const { animation, audio, document, photo, sticker, video, video_note } = web_page;
                 if (photo) {
-                    return getPhotoSize(photo.sizes);
+                    return getPhotoSize(photo.sizes, PHOTO_THUMBNAIL_SIZE);
                 }
                 if (animation) {
                     const { thumbnail } = animation;
@@ -2583,6 +2678,8 @@ export function showMessageForward(chatId, messageId) {
     const message = MessageStore.get(chatId, messageId);
     if (!message) return false;
 
+    if (isMeChat(chatId)) return false;
+
     const { forward_info, content } = message;
 
     return forward_info && content && content['@type'] !== 'messageSticker' && content['@type'] !== 'messageAudio';
@@ -2598,10 +2695,9 @@ export function isTextMessage(chatId, messageId) {
 }
 
 export function isMessagePinned(chatId, messageId) {
-    const chat = ChatStore.get(chatId);
-    if (!chat) return false;
+    const message = MessageStore.get(chatId, messageId);
 
-    return chat.pinned_message_id === messageId;
+    return message && message.is_pinned;
 }
 
 export function canMessageBeUnvoted(chatId, messageId) {
@@ -2730,9 +2826,7 @@ export {
     isForwardOriginHidden,
     getForwardTitle,
     getUnread,
-    getSenderUserId,
     filterDuplicateMessages,
-    filterMessages,
     isMediaContent,
     isDeletedMessage,
     isVideoMessage,
@@ -2744,7 +2838,6 @@ export {
     hasVideoNote,
     getSearchMessagesFilter,
     openMedia,
-    getReplyPhotoSize,
     getEmojiMatches,
     messageComparatorDesc,
     substring,

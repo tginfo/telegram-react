@@ -9,6 +9,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { withTranslation } from 'react-i18next';
+import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -20,11 +21,10 @@ import DialogBadge from './DialogBadge';
 import DialogTitle from './DialogTitle';
 import DialogMeta from './DialogMeta';
 import ArchiveIcon from '../../Assets/Icons/Archive';
-import BroomIcon from '../../Assets/Icons/Broom';
 import DeleteIcon from '../../Assets/Icons/Delete';
 import UnarchiveIcon from '../../Assets/Icons/Unarchive';
 import PinIcon from '../../Assets/Icons/Pin2';
-import UnpinIcon from '../../Assets/Icons/Pin2';
+import UnpinIcon from '../../Assets/Icons/PinOff';
 import MuteIcon from '../../Assets/Icons/Mute';
 import UnmuteIcon from '../../Assets/Icons/Unmute';
 import UserIcon from '../../Assets/Icons/User';
@@ -32,7 +32,7 @@ import GroupIcon from '../../Assets/Icons/Group';
 import MessageIcon from '../../Assets/Icons/Message';
 import UnreadIcon from '../../Assets/Icons/Unread';
 import {
-    canAddChatToList, canClearHistory,
+    canAddChatToList,
     canDeleteChat,
     getDeleteChatTitle,
     getViewInfoTitle,
@@ -292,139 +292,140 @@ class Dialog extends Component {
         const isUnread = isChatUnread(chatId);
         const isArchived = isChatArchived(chatId);
         return (
-            <div
-                ref={this.dialog}
+            <ListItem
+                button
                 className={classNames('dialog', { 'item-selected': isSelected }, { 'dialog-hidden': hidden })}
                 onMouseDown={this.handleSelect}
                 onContextMenu={this.handleContextMenu}
-                style={style}>
-                <div className='dialog-wrapper'>
-                    <ChatTile chatId={chatId} dialog showSavedMessages={showSavedMessages} showOnline />
-                    <div className='dialog-inner-wrapper'>
-                        <div className='tile-first-row'>
-                            <DialogTitle chatId={chatId} />
-                            <DialogMeta chatId={chatId} />
-                        </div>
-                        <div className='tile-second-row'>
-                            <DialogContent chatId={chatId} />
-                            <DialogBadge chatId={chatId} chatList={chatList} />
+                style={style}
+                >
+                    <div className='dialog-wrapper'>
+                        <ChatTile chatId={chatId} dialog showSavedMessages={showSavedMessages} showOnline />
+                        <div className='dialog-inner-wrapper'>
+                            <div className='tile-first-row'>
+                                <DialogTitle chatId={chatId} />
+                                <DialogMeta chatId={chatId} />
+                            </div>
+                            <div className='tile-second-row'>
+                                <DialogContent chatId={chatId} />
+                                <DialogBadge chatId={chatId} chatList={chatList} />
+                            </div>
                         </div>
                     </div>
-                </div>
-                <Popover
-                    open={contextMenu}
-                    onClose={this.handleCloseContextMenu}
-                    anchorReference='anchorPosition'
-                    anchorPosition={{ top, left }}
-                    anchorOrigin={{
-                        vertical: 'bottom',
-                        horizontal: 'right'
-                    }}
-                    transformOrigin={{
-                        vertical: 'top',
-                        horizontal: 'left'
-                    }}
-                    onMouseDown={e => e.stopPropagation()}>
-                    <MenuList onClick={e => e.stopPropagation()}>
-                        {canToggleArchive && (
-                            <MenuItem onClick={this.handleArchive}>
-                                {isArchived ? (
-                                    <>
-                                        <ListItemIcon>
-                                            <UnarchiveIcon />
-                                        </ListItemIcon>
-                                        <ListItemText primary={t('Unarchive')} />
-                                    </>
-                                ) : (
-                                    <>
-                                        <ListItemIcon>
-                                            <ArchiveIcon />
-                                        </ListItemIcon>
-                                        <ListItemText primary={t('Archive')} />
-                                    </>
-                                )}
-                            </MenuItem>
-                        )}
-                        {canTogglePin && (
-                            <MenuItem onClick={this.handlePin}>
-                                {isPinned ? (
-                                    <>
-                                        <ListItemIcon>
-                                            <UnpinIcon />
-                                        </ListItemIcon>
-                                        <ListItemText primary={t('UnpinFromTop')} />
-                                    </>
-                                ) : (
-                                    <>
-                                        <ListItemIcon>
-                                            <PinIcon />
-                                        </ListItemIcon>
-                                        <ListItemText primary={t('PinToTop')} />
-                                    </>
-                                )}
-                            </MenuItem>
-                        )}
-                        <MenuItem onClick={this.handleViewInfo}>
-                            <ListItemIcon>
-                                {isPrivateChat(chatId) ? <UserIcon /> : <GroupIcon />}
-                            </ListItemIcon>
-                            <ListItemText primary={getViewInfoTitle(chatId, t)} />
-                        </MenuItem>
-                        { canMute && (
-                            <MenuItem onClick={this.handleMute}>
-                                {isMuted ? (
-                                    <>
-                                        <ListItemIcon>
-                                            <UnmuteIcon />
-                                        </ListItemIcon>
-                                        <ListItemText primary={t('ChatsUnmute')} />
-                                    </>
-                                ) : (
-                                    <>
-                                        <ListItemIcon>
-                                            <MuteIcon />
-                                        </ListItemIcon>
-                                        <ListItemText primary={t('ChatsMute')} />
-                                    </>
-                                )}
-                            </MenuItem>
-                        )}
-                        <MenuItem onClick={this.handleRead}>
-                            {isUnread ? (
-                                <>
-                                    <ListItemIcon>
-                                        <MessageIcon />
-                                    </ListItemIcon>
-                                    <ListItemText primary={t('MarkAsRead')} />
-                                </>
-                            ) : (
-                                <>
-                                    <ListItemIcon>
-                                        <UnreadIcon />
-                                    </ListItemIcon>
-                                    <ListItemText primary={t('MarkAsUnread')} />
-                                </>
+                    <Popover
+                        open={contextMenu}
+                        onClose={this.handleCloseContextMenu}
+                        anchorReference='anchorPosition'
+                        anchorPosition={{ top, left }}
+                        anchorOrigin={{
+                            vertical: 'bottom',
+                            horizontal: 'right'
+                        }}
+                        transformOrigin={{
+                            vertical: 'top',
+                            horizontal: 'left'
+                        }}
+                        onMouseDown={e => e.stopPropagation()}>
+                        <MenuList onClick={e => e.stopPropagation()}>
+                            {canToggleArchive && (
+                                <MenuItem onClick={this.handleArchive}>
+                                    {isArchived ? (
+                                        <>
+                                            <ListItemIcon>
+                                                <UnarchiveIcon />
+                                            </ListItemIcon>
+                                            <ListItemText primary={t('Unarchive')} />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ListItemIcon>
+                                                <ArchiveIcon />
+                                            </ListItemIcon>
+                                            <ListItemText primary={t('Archive')} />
+                                        </>
+                                    )}
+                                </MenuItem>
                             )}
-                        </MenuItem>
-                        {/*{clearHistory && (*/}
-                        {/*    <MenuItem onClick={this.handleClearHistory}>*/}
-                        {/*        <ListItemIcon>*/}
-                        {/*            <BroomIcon />*/}
-                        {/*        </ListItemIcon>*/}
-                        {/*        <ListItemText primary={t('ClearHistory')} />*/}
-                        {/*    </MenuItem>*/}
-                        {/*)}*/}
-                        {deleteChat && deleteChatTitle && (
-                            <MenuItem onClick={this.handleDeleteChat}>
+                            {canTogglePin && (
+                                <MenuItem onClick={this.handlePin}>
+                                    {isPinned ? (
+                                        <>
+                                            <ListItemIcon>
+                                                <UnpinIcon />
+                                            </ListItemIcon>
+                                            <ListItemText primary={t('UnpinFromTop')} />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ListItemIcon>
+                                                <PinIcon />
+                                            </ListItemIcon>
+                                            <ListItemText primary={t('PinToTop')} />
+                                        </>
+                                    )}
+                                </MenuItem>
+                            )}
+                            <MenuItem onClick={this.handleViewInfo}>
                                 <ListItemIcon>
-                                    <DeleteIcon />
+                                    {isPrivateChat(chatId) ? <UserIcon /> : <GroupIcon />}
                                 </ListItemIcon>
-                                <ListItemText primary={deleteChatTitle} />
+                                <ListItemText primary={getViewInfoTitle(chatId, t)} />
                             </MenuItem>
-                        )}
-                    </MenuList>
-                </Popover>
-            </div>
+                            { canMute && (
+                                <MenuItem onClick={this.handleMute}>
+                                    {isMuted ? (
+                                        <>
+                                            <ListItemIcon>
+                                                <UnmuteIcon />
+                                            </ListItemIcon>
+                                            <ListItemText primary={t('ChatsUnmute')} />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ListItemIcon>
+                                                <MuteIcon />
+                                            </ListItemIcon>
+                                            <ListItemText primary={t('ChatsMute')} />
+                                        </>
+                                    )}
+                                </MenuItem>
+                            )}
+                            <MenuItem onClick={this.handleRead}>
+                                {isUnread ? (
+                                    <>
+                                        <ListItemIcon>
+                                            <MessageIcon />
+                                        </ListItemIcon>
+                                        <ListItemText primary={t('MarkAsRead')} />
+                                    </>
+                                ) : (
+                                    <>
+                                        <ListItemIcon>
+                                            <UnreadIcon />
+                                        </ListItemIcon>
+                                        <ListItemText primary={t('MarkAsUnread')} />
+                                    </>
+                                )}
+                            </MenuItem>
+                            {/*{clearHistory && (*/}
+                            {/*    <MenuItem onClick={this.handleClearHistory}>*/}
+                            {/*        <ListItemIcon>*/}
+                            {/*            <BroomIcon />*/}
+                            {/*        </ListItemIcon>*/}
+                            {/*        <ListItemText primary={t('ClearHistory')} />*/}
+                            {/*    </MenuItem>*/}
+                            {/*)}*/}
+                            {deleteChat && deleteChatTitle && (
+                                <MenuItem onClick={this.handleDeleteChat}>
+                                    <ListItemIcon>
+                                        <DeleteIcon />
+                                    </ListItemIcon>
+                                    <ListItemText primary={deleteChatTitle} />
+                                </MenuItem>
+                            )}
+                        </MenuList>
+                    </Popover>
+            </ListItem>
         );
     }
 }

@@ -12,20 +12,16 @@ import MessageAuthor from '../Message/MessageAuthor';
 import './MediaInfo.css';
 
 class ProfileMediaInfo extends React.Component {
-    constructor(props) {
-        super(props);
-    }
-
     render() {
-        const { chatId, date } = this.props;
+        const { chatId, date, style } = this.props;
 
         return (
-            <div className='media-info'>
+            <div className='media-info' style={style}>
                 <div className='media-info-wrapper'>
                     <ChatTile chatId={chatId} showSavedMessages={false} />
                     <div className='media-info-content'>
                         <div className='media-info-row'>
-                            <MessageAuthor chatId={chatId} />
+                            <MessageAuthor sender={{ '@type': 'messageSenderChat', chat_id: chatId }} />
                         </div>
                         {date && (
                             <div className='media-info-row meta'>

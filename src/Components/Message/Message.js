@@ -8,9 +8,7 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import { compose } from '../../Utils/HOC';
 import { withTranslation } from 'react-i18next';
-import { withRestoreRef, withSaveRef } from '../../Utils/HOC';
 import CheckMarkIcon from '@material-ui/icons/Check';
 import DayMeta from './DayMeta';
 import Reply from './Reply';
@@ -31,10 +29,10 @@ import {
     showMessageForward,
     isMetaBubble,
     canMessageBeForwarded,
-    getMessageStyle
+    getMessageStyle, isBadSelection, isEmptySelection
 } from '../../Utils/Message';
 import { getMedia } from '../../Utils/Media';
-import { canSendMessages, isChannelChat, isPrivateChat } from '../../Utils/Chat';
+import { canSendMessages, isChannelChat, isGroupChat, isMeChat, isPrivateChat } from '../../Utils/Chat';
 import {
     openUser,
     openChat,
@@ -225,7 +223,9 @@ class Message extends Component {
         if (!this.mouseDown) return;
 
         const selection = window.getSelection().toString();
-        if (selection) return;
+        if (!isEmptySelection(selection)) {
+            return;
+        }
 
         const { chatId, messageId } = this.props;
 
@@ -323,7 +323,7 @@ class Message extends Component {
 
     render() {
         let { showTail } = this.props;
-        const { t, chatId, messageId, showUnreadSeparator, showTitle, showDate } = this.props;
+        const { t, chatId, messageId, showUnreadSeparator, showTitle, showDate, source } = this.props;
         const {
             emojiMatches,
             selected,
@@ -340,7 +340,7 @@ class Message extends Component {
         const message = MessageStore.get(chatId, messageId);
         if (!message) return <div>[empty message]</div>;
 
-        const { content, is_outgoing, views, date, edit_date, reply_to_message_id, forward_info, sender_user_id } = message;
+        const { content, is_outgoing, date, reply_to_message_id, forward_info, sender } = message;
 
         const isOutgoing = is_outgoing && !isChannelChat(chatId);
         const inlineMeta = (
@@ -349,9 +349,6 @@ class Message extends Component {
                 key={`${chatId}_${messageId}_meta`}
                 chatId={chatId}
                 messageId={messageId}
-                date={date}
-                editDate={edit_date}
-                views={views}
             />
         );
         const meta = (
@@ -361,9 +358,6 @@ class Message extends Component {
                 })}
                 chatId={chatId}
                 messageId={messageId}
-                date={date}
-                editDate={edit_date}
-                views={views}
                 onDateClick={this.handleDateClick}
             />
         );
@@ -373,7 +367,7 @@ class Message extends Component {
         const hasCaption = text !== null && text.length > 0;
         const showForward = showMessageForward(chatId, messageId);
         const showReply = Boolean(reply_to_message_id);
-        const suppressTitle = isPrivateChat(chatId);
+        const suppressTitle = isPrivateChat(chatId) && !(isMeChat(chatId) && !isOutgoing) || (isGroupChat(chatId) && isOutgoing);
         const hasTitle = (!suppressTitle && showTitle) || showForward || showReply;
         const media = getMedia(message, this.openMedia, { hasTitle, hasCaption, inlineMeta, meta });
         const isChannel = isChannelChat(chatId);
@@ -385,16 +379,31 @@ class Message extends Component {
 
         let tile = null;
         if (showTail) {
-            if (isPrivate) {
+            if (isMeChat(chatId) && forward_info) {
+                switch (forward_info.origin['@type']) {
+                    case 'messageForwardOriginHiddenUser': {
+                        tile = <UserTile small firstName={forward_info.origin.sender_name} onSelect={this.handleSelectUser} />;
+                        break;
+                    }
+                    case 'messageForwardOriginUser': {
+                        tile = <UserTile small userId={forward_info.origin.sender_user_id} onSelect={this.handleSelectUser} />;
+                        break;
+                    }
+                    case 'messageForwardOriginChannel': {
+                        tile = <ChatTile small chatId={forward_info.origin.chat_id} onSelect={this.handleSelectChat} />;
+                        break;
+                    }
+                }
+            } else if (isPrivate) {
                 tile = <EmptyTile small />
             } else if (isChannel) {
                 tile = <EmptyTile small />
             } else if (is_outgoing) {
                 tile = <EmptyTile small />
-            } else if (sender_user_id) {
-                tile = <UserTile small userId={sender_user_id} onSelect={this.handleSelectUser} />
+            } else if (sender.user_id) {
+                tile = <UserTile small userId={sender.user_id} onSelect={this.handleSelectUser} />;
             } else {
-                tile = <ChatTile small chatId={chatId} onSelect={this.handleSelectChat} />
+                tile = <ChatTile small chatId={chatId} onSelect={this.handleSelectChat} />;
             }
         }
 
@@ -455,7 +464,7 @@ class Message extends Component {
                                 {withBubble && ((showTitle && !suppressTitle) || showForward) && (
                                     <div className='message-title'>
                                         {showTitle && !showForward && (
-                                            <MessageAuthor chatId={chatId} openChat userId={sender_user_id} openUser />
+                                            <MessageAuthor sender={sender} forwardInfo={forward_info} openChat openUser/>
                                         )}
                                         {showForward && <Forward forwardInfo={forward_info} />}
                                     </div>
@@ -498,6 +507,7 @@ class Message extends Component {
                     open={contextMenu}
                     onClose={this.handleCloseContextMenu}
                     copyLink={copyLink}
+                    source={source}
                 />
             </div>
         );

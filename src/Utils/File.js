@@ -19,7 +19,7 @@ import {
     LOCATION_WIDTH,
     LOCATION_ZOOM,
     PHOTO_BIG_SIZE,
-    PHOTO_SIZE,
+    PHOTO_SIZE, PHOTO_THUMBNAIL_SIZE,
     PRELOAD_ANIMATION_SIZE,
     PRELOAD_AUDIO_SIZE,
     PRELOAD_DOCUMENT_SIZE,
@@ -159,35 +159,51 @@ async function loadReplies(store, chatId, messageIds) {
     if (!messageIds) return;
     if (!messageIds.length) return;
 
-    const result = await TdLibController.send({
-        '@type': 'getMessages',
-        chat_id: chatId,
-        message_ids: messageIds
-    });
+    let messages = [];
+    const ids = [];
+    for (let i = 0; i < messageIds.length; i++) {
+        const reply = MessageStore.get(chatId, messageIds[i]);
+        if (reply) {
+            messages.push(reply)
+        } else {
+            ids.push(messageIds[i]);
+        }
+    }
 
-    result.messages = result.messages.map((message, i) => {
-        return (
-            message || {
-                '@type': 'deletedMessage',
-                chat_id: chatId,
-                id: messageIds[i],
-                content: null
-            }
-        );
-    });
+    if (ids.length > 0) {
+        const result = await TdLibController.send({
+            '@type': 'getMessages',
+            chat_id: chatId,
+            message_ids: messageIds
+        });
 
-    MessageStore.setItems(result.messages);
+        result.messages = result.messages.map((message, i) => {
+            return (
+                message || {
+                    '@type': 'deletedMessage',
+                    chat_id: chatId,
+                    id: messageIds[i],
+                    sender: { },
+                    content: null
+                }
+            );
+        });
 
-    for (let i = messageIds.length - 1; i >= 0; i--) {
-        MessageStore.emit('getMessageResult', MessageStore.get(chatId, messageIds[i]));
+        messages = messages.concat(result.messages);
+    }
+
+    MessageStore.setItems(messages);
+
+    for (let i = ids.length - 1; i >= 0; i--) {
+        MessageStore.emit('getMessageResult', MessageStore.get(chatId, ids[i]));
     }
 
     store = FileStore.getStore();
 
-    loadReplyContents(store, result.messages);
+    loadReplyContents(store, messages);
 }
 
-function loadReplyContents(store, messages) {
+export function loadReplyContents(store, messages) {
     for (let i = messages.length - 1; i >= 0; i--) {
         const message = messages[i];
         if (!message) {
@@ -212,7 +228,7 @@ function loadReplyContents(store, messages) {
                 case 'messageChatChangePhoto': {
                     const { photo } = content;
 
-                    loadPhotoContent(store, photo, message);
+                    loadPhotoContent(store, photo, message, PHOTO_THUMBNAIL_SIZE);
                     break;
                 }
                 case 'messageDocument': {
@@ -230,7 +246,7 @@ function loadReplyContents(store, messages) {
                 case 'messagePhoto': {
                     const { photo } = content;
 
-                    loadPhotoContent(store, photo, message);
+                    loadPhotoContent(store, photo, message, PHOTO_THUMBNAIL_SIZE);
                     break;
                 }
                 case 'messageSticker': {
@@ -246,7 +262,7 @@ function loadReplyContents(store, messages) {
                     const { animation, audio, document, photo, sticker, video, video_note } = web_page;
 
                     if (photo) {
-                        loadPhotoContent(store, photo, message);
+                        loadPhotoContent(store, photo, message, PHOTO_THUMBNAIL_SIZE);
                         break;
                     }
 
@@ -962,6 +978,7 @@ function loadVoiceNoteContent(store, voiceNote, message, useFileSize = true) {
 
 function loadMessageContents(store, messages) {
     const users = new Map();
+    const chats = new Map();
     let chatId = 0;
     const replies = new Map();
 
@@ -971,10 +988,29 @@ function loadMessageContents(store, messages) {
             continue;
         }
 
-        const { chat_id, content, sender_user_id, reply_to_message_id } = message;
+        const { chat_id, content, sender, reply_to_message_id, forward_info } = message;
 
-        if (sender_user_id) {
-            users.set(sender_user_id, sender_user_id);
+        if (sender.user_id) {
+            users.set(sender.user_id, sender.user_id);
+        } else if (sender.chat_id) {
+            chats.set(sender.chat_id, sender.chat_id);
+        }
+
+        if (forward_info) {
+            const { origin } = forward_info;
+            switch (origin['@type']) {
+                case 'messageForwardOriginChannel': {
+                    chats.set(origin.chat_id, origin.chat_id);
+                    break;
+                }
+                case 'messageForwardOriginHiddenUser': {
+                    break;
+                }
+                case 'messageForwardOriginUser': {
+                    users.set(origin.sender_user_id, origin.sender_user_id);
+                    break;
+                }
+            }
         }
 
         if (reply_to_message_id) {
@@ -1131,6 +1167,7 @@ function loadMessageContents(store, messages) {
     }
 
     loadUsersContent(store, [...users.keys()]);
+    loadChatsContent(store, [...chats.keys()]);
     loadReplies(store, chatId, [...replies.keys()]);
 }
 

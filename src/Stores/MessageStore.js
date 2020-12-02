@@ -9,6 +9,7 @@ import EventEmitter from './EventEmitter';
 import { getBlob } from '../Utils/File';
 import FileStore from './FileStore';
 import TdLibController from '../Controllers/TdLibController';
+import ChatStore from './ChatStore';
 
 class MessageStore extends EventEmitter {
     constructor() {
@@ -42,14 +43,15 @@ class MessageStore extends EventEmitter {
             }
             case 'updateNewMessage': {
                 this.set(update.message);
-
                 this.addMediaMessage(update.message);
 
                 this.emit('updateNewMessage', update);
                 break;
             }
             case 'updateDeleteMessages':
-                if (update.is_permanent) this.removeMediaMessages(update.chat_id, update.message_ids);
+                if (update.is_permanent) {
+                    this.removeMediaMessages(update.chat_id, update.message_ids);
+                }
                 this.emit('updateDeleteMessages', update);
                 break;
             case 'updateMessageEdited': {
@@ -57,22 +59,57 @@ class MessageStore extends EventEmitter {
                 if (chat) {
                     const message = chat.get(update.message_id);
                     if (message) {
-                        message.reply_markup = update.reply_markup;
-                        message.edit_date = update.edit_date;
+                        const newMessage = {
+                            ...message,
+                            ...{
+                                reply_markup: update.reply_markup,
+                                edit_date: update.edit_date
+                            }
+                        };
+
+                        this.set(newMessage);
                     }
                 }
                 this.emit('updateMessageEdited', update);
                 break;
             }
-            case 'updateMessageViews': {
-                const chat = this.items.get(update.chat_id);
+            case 'updateMessageIsPinned': {
+                const { chat_id, message_id, is_pinned } = update;
+
+                const chat = this.items.get(chat_id);
                 if (chat) {
-                    const message = chat.get(update.message_id);
-                    if (message && update.views > message.views) {
-                        message.views = update.views;
+                    const message = chat.get(message_id);
+                    if (message && is_pinned !== message.is_pinned) {
+                        const newMessage = { ...message, ...{ is_pinned } };
+
+                        this.set(newMessage);
+                        this.updateMediaMessage(newMessage);
                     }
                 }
-                this.emit('updateMessageViews', update);
+
+                if (is_pinned) {
+                    const data = ChatStore.getClientData(chat_id);
+                    if (data) {
+                        ChatStore.setClientData(chat_id, { ...data, ...{ unpinned: false }});
+                    }
+                }
+
+                this.emit('updateMessageIsPinned', update);
+                break;
+            }
+            case 'updateMessageInteractionInfo': {
+                const { chat_id, message_id, interaction_info } = update;
+
+                const chat = this.items.get(chat_id);
+                if (chat) {
+                    const message = chat.get(message_id);
+                    if (message) {
+                        const newMessage = { ...message, ...{ interaction_info } };
+
+                        this.set(newMessage);
+                    }
+                }
+                this.emit('updateMessageInteractionInfo', update);
                 break;
             }
             case 'updateMessageContent': {
@@ -196,10 +233,18 @@ class MessageStore extends EventEmitter {
                 this.emit('clientUpdateChatMedia', update);
                 break;
             }
+            case 'clientUpdateCurrentPinnedMessage': {
+                this.emit('clientUpdateCurrentPinnedMessage', update);
+                break;
+            }
             case 'clientUpdateClearSelection': {
                 this.selectedItems.clear();
 
                 this.emit('clientUpdateClearSelection', update);
+                break;
+            }
+            case 'clientUpdateClosePinned': {
+                this.emit('clientUpdateClosePinned', update);
                 break;
             }
             case 'clientUpdateEditMessage': {
@@ -233,6 +278,10 @@ class MessageStore extends EventEmitter {
             }
             case 'clientUpdateMessagesInView': {
                 this.emit('clientUpdateMessagesInView', update);
+                break;
+            }
+            case 'clientUpdateOpenPinned': {
+                this.emit('clientUpdateOpenPinned', update);
                 break;
             }
             case 'clientUpdateOpenReply': {
@@ -291,6 +340,7 @@ class MessageStore extends EventEmitter {
                     '@type': 'deletedMessage',
                     chat_id: chatId,
                     id: messageId,
+                    sender: { },
                     content: null
                 };
                 this.set(deletedMessage);
@@ -337,12 +387,13 @@ class MessageStore extends EventEmitter {
     }
 
     setMedia(chatId, media) {
-        const { photoAndVideo, document, audio, url, voiceNote } = media;
+        const { photoAndVideo, document, audio, url, voiceNote, pinned } = media;
         this.setItems(photoAndVideo);
         this.setItems(document);
         this.setItems(audio);
         this.setItems(url);
         this.setItems(voiceNote);
+        this.setItems(pinned);
 
         return this.media.set(chatId, media);
     }
@@ -370,6 +421,9 @@ class MessageStore extends EventEmitter {
 
         const voiceNote = media.voiceNote.filter(x => !map.has(x.id));
         media.voiceNote = voiceNote.length !== media.voiceNote.length ? voiceNote : media.voiceNote;
+
+        const pinned = media.pinned.filter(x => !map.has(x.id));
+        media.pinned = pinned.length !== media.pinned.length ? pinned : media.pinned;
     }
 
     addMediaMessage(message) {
@@ -378,6 +432,13 @@ class MessageStore extends EventEmitter {
         const { chat_id, content } = message;
         const media = this.getMedia(chat_id);
         if (!media) return;
+
+        if (message.is_pinned) {
+            const { pinned } = media;
+            if (pinned) {
+                media.pinned = this.insertMessage(message, pinned);
+            }
+        }
 
         switch (content['@type']) {
             case 'messageAudio': {
