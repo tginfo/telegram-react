@@ -57,6 +57,9 @@ serviceMap.set('messagePassportDataSent', true);
 serviceMap.set('messagePassportDataReceived', true);
 serviceMap.set('messageLiveLocationApproached', true);
 serviceMap.set('messageUnsupported', true);
+serviceMap.set('messageVoiceChatStarted', true);
+serviceMap.set('messageVoiceChatEnded', true);
+serviceMap.set('messageInviteVoiceChatParticipants', true);
 
 export function isServiceMessage(message) {
     if (!message) return false;
@@ -82,6 +85,25 @@ function getTTLString(ttl) {
     }
 
     return `${LStore.formatPluralString('Weeks', Math.floor(days / 7))} ${LStore.formatPluralString('Days', Math.floor(days % 7))}`
+}
+
+function getCallDuration(duration) {
+    const days = Math.floor(duration / (3600 * 24));
+    if (days > 0) {
+        return LStore.formatPluralString('Days', days);
+    }
+
+    const hours = Math.floor(duration / 3600);
+    if (hours > 0) {
+        return LStore.formatPluralString('Hours', hours);
+    }
+
+    const minutes = Math.floor(duration / 60);
+    if (minutes > 0) {
+        return LStore.formatPluralString('Minutes', minutes);
+    }
+
+    return LStore.formatPluralString('Seconds', duration);
 }
 
 function getPassportElementTypeString(type) {
@@ -416,11 +438,13 @@ export function getServiceMessageContent(message, openUser = false) {
             return content.text;
         }
         case 'messageGameScore': {
-            const messageGame = MessageStore.get(message.chat_id, content.game_message_id);
+            const { score, game_message_id } = content;
+
+            const messageGame = MessageStore.get(message.chat_id, game_message_id);
             if (messageGame) {
-                const { content } = messageGame;
-                if (content && content['@type'] === 'messageGame') {
-                    const { game, score } = content;
+                const { content: messageGameContent } = messageGame;
+                if (messageGameContent && messageGameContent['@type'] === 'messageGame') {
+                    const { game } = messageGameContent;
                     if (game) {
                         if (isOutgoing) {
                             return LStore.formatString('ActionYouScoredInGame', LStore.formatPluralString('Points', score)).replace('un2', game.title);
@@ -429,16 +453,15 @@ export function getServiceMessageContent(message, openUser = false) {
                         const str = LStore.formatString('ActionUserScoredInGame', LStore.formatPluralString('Points', score)).replace('un2', game.title);
                         return LStore.replace(str, 'un1', <MessageAuthor key='un1' sender={sender} openUser={openUser} />);
                     }
-
-                    if (isOutgoing) {
-                        return LStore.formatString('ActionYouScored', LStore.formatPluralString('Points', score));
-                    }
-
-                    const str = LStore.formatString('ActionUserScoredInGame', LStore.formatPluralString('Points', score));
-                    return LStore.replace(str, 'un1', <MessageAuthor key='un1' sender={sender} openUser={openUser} />);
                 }
             }
-            break;
+
+            if (isOutgoing) {
+                return LStore.formatString('ActionYouScored', LStore.formatPluralString('Points', score));
+            }
+
+            const str = LStore.formatString('ActionUserScored', LStore.formatPluralString('Points', score));
+            return LStore.replace(str, 'un1', <MessageAuthor key='un1' sender={sender} openUser={openUser} />);
         }
         case 'messagePaymentSuccessful': {
             const chat = ChatStore.get(message.chat_id);
@@ -496,6 +519,49 @@ export function getServiceMessageContent(message, openUser = false) {
         }
         case 'messageUnsupported': {
             return LStore.getString('UnsupportedMedia');
+        }
+        case 'messageVoiceChatStarted': {
+            if (isOutgoing) {
+                return LStore.getString('ActionGroupCallStartedByYou');
+            }
+
+            return LStore.replace(LStore.getString('ActionGroupCallStarted'), 'un1', <MessageAuthor key='un1' sender={sender} openUser={openUser} />);
+        }
+        case 'messageVoiceChatEnded': {
+            const { duration } = content;
+
+            return LStore.formatString('ActionGroupCallEnded', getCallDuration(duration));
+        }
+        case 'messageInviteVoiceChatParticipants': {
+            const singleMember = content.user_ids.length === 1;
+            if (singleMember) {
+                const memberUserId = content.user_ids[0];
+                if (memberUserId !== 0) {
+                    if (isOutgoing) {
+                        return LStore.replace(LStore.getString('ActionGroupCallYouInvited'), 'un2', <MessageAuthor key='un2' sender={{ '@type': 'messageSenderUser', user_id: memberUserId }} openUser={openUser} />);
+                    }
+
+                    if (isMeUser(memberUserId)) {
+                        return LStore.replace(LStore.getString('ActionGroupCallInvitedYou'), 'un1', <MessageAuthor key='un1' sender={sender} openUser={openUser} />);
+                    }
+
+                    return LStore.replaceTwo(LStore.getString('ActionGroupCallInvited'), 'un1', <MessageAuthor key='un1' sender={sender} openUser={openUser} />, 'un2', <MessageAuthor key='un2' sender={{ '@type': 'messageSenderUser', user_id: memberUserId }} openUser={openUser} />);
+                }
+            }
+
+            const members = content.user_ids
+                .map(x => <MessageAuthor key={x} sender={{ '@type': 'messageSenderUser', user_id: x }} openUser={openUser} />)
+                .reduce((accumulator, current, index, array) => {
+                    // const separator = index === array.length - 1 ? ' and ' : ', ';
+                    const separator = ', ';
+                    return accumulator === null ? [current] : [...accumulator, separator, current];
+                }, null);
+
+            if (isOutgoing) {
+                return LStore.replace(LStore.getString('ActionGroupCallYouInvited'), 'un2', members);
+            }
+
+            return LStore.replaceTwo(LStore.getString('ActionAddUser'), 'un1', <MessageAuthor key='un1' sender={sender} openUser={openUser} />, 'un2', members);
         }
     }
 

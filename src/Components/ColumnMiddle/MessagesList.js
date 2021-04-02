@@ -13,6 +13,8 @@ import ActionBar from './ActionBar';
 import Album from '../Message/Album/Album';
 import DocumentAlbum from '../Message/Album/DocumentAlbum';
 import FilesDropTarget from './FilesDropTarget';
+import GroupCallJoinPanel from '../Calls/GroupCallJoinPanel';
+import InputBoxHints from './InputBoxHints';
 import Message from '../Message/Message';
 import ServiceMessage from '../Message/ServiceMessage';
 import Placeholder from './Placeholder';
@@ -22,8 +24,9 @@ import { throttle, getPhotoSize, itemsInView, historyEquals, getScrollMessage, m
 import { loadChatsContent, loadDraftContent, loadMessageContents } from '../../Utils/File';
 import { canMessageBeEdited, filterDuplicateMessages, forwardInfoEquals, senderEquals } from '../../Utils/Message';
 import { isServiceMessage } from '../../Utils/ServiceMessage';
-import { canSendMediaMessages, getChatFullInfo, getChatMedia, getSupergroupId, isChannelChat, isMeChat } from '../../Utils/Chat';
+import { canSendMediaMessages, canSendMessages, getChatFullInfo, getChatMedia, getSupergroupId, isChannelChat, isGroupChat, isMeChat } from '../../Utils/Chat';
 import { closePinned, editMessage, highlightMessage, openChat } from '../../Actions/Client';
+import { sendBotStartMessage } from '../../Actions/Message';
 import { ALBUM_MESSAGES_LIMIT, MESSAGE_SLICE_LIMIT, MESSAGE_SPLIT_MAX_TIME_S, SCROLL_PRECISION } from '../../Constants';
 import AppStore from '../../Stores/ApplicationStore';
 import ChatStore from '../../Stores/ChatStore';
@@ -201,6 +204,8 @@ class MessagesList extends React.Component {
         MessageStore.on('clientUpdateClearSelection', this.onClientUpdateSelection);
         MessageStore.on('clientUpdateMessageSelected', this.onClientUpdateSelection);
         MessageStore.on('clientUpdateOpenReply', this.onClientUpdateOpenReply);
+        MessageStore.on('clientUpdateStartMessageEditing', this.onClientUpdateStartMessageEditing);
+        MessageStore.on('clientUpdateStopMessageEditing', this.onClientUpdateStopMessageEditing);
         MessageStore.on('clientUpdateTryEditMessage', this.onClientUpdateTryEditMessage);
         MessageStore.on('updateNewMessage', this.onUpdateNewMessage);
         MessageStore.on('updateDeleteMessages', this.onUpdateDeleteMessages);
@@ -220,6 +225,8 @@ class MessagesList extends React.Component {
         MessageStore.off('clientUpdateClearSelection', this.onClientUpdateSelection);
         MessageStore.off('clientUpdateMessageSelected', this.onClientUpdateSelection);
         MessageStore.off('clientUpdateOpenReply', this.onClientUpdateOpenReply);
+        MessageStore.off('clientUpdateStartMessageEditing', this.onClientUpdateStartMessageEditing);
+        MessageStore.off('clientUpdateStopMessageEditing', this.onClientUpdateStopMessageEditing);
         MessageStore.off('clientUpdateTryEditMessage', this.onClientUpdateTryEditMessage);
         MessageStore.off('updateNewMessage', this.onUpdateNewMessage);
         MessageStore.off('updateDeleteMessages', this.onUpdateDeleteMessages);
@@ -231,6 +238,43 @@ class MessagesList extends React.Component {
         PlayerStore.off('clientUpdateMediaEnding', this.onClientUpdateMediaEnding);
         PlayerStore.off('clientUpdateMediaEnd', this.onClientUpdateMediaEnd);
     }
+
+    onClientUpdateStartMessageEditing = update => {
+        const { chatId, messageId } = update;
+        const { chatId: currentChatId } = this.props;
+        if (currentChatId !== chatId) return;
+
+        const { history } = this.state;
+        if (!history.length) return;
+
+        const { current: list } = this.listRef;
+        if (list.offsetHeight + list.scrollTop < list.scrollHeight){
+            return;
+        }
+
+        if (!history.some(x => x.chat_id === chatId && x.id === messageId)) return;
+
+        this.scrollBottomAfterEditing = {
+            chatId,
+            messageId
+        };
+    };
+
+    onClientUpdateStopMessageEditing = update => {
+        const { chatId, messageId } = update;
+        const { chatId: currentChatId } = this.props;
+        if (currentChatId !== chatId) return;
+
+        const { scrollBottomAfterEditing } = this;
+        if (!scrollBottomAfterEditing) return;
+
+        if (chatId !== scrollBottomAfterEditing.chatId) return;
+        if (messageId !== scrollBottomAfterEditing.messageId) return;
+
+        const { current: list } = this.listRef;
+        list.scrollTop = list.scrollHeight - list.offsetHeight;
+        this.scrollBottomAfterEditing = null;
+    };
 
     onUpdateMessageIsPinned = update => {
         const { chat_id, message_id, is_pinned } = update;
@@ -409,12 +453,10 @@ class MessagesList extends React.Component {
     onClientUpdateMediaEnd = udpate => {
         const list = this.listRef.current;
 
-        //const prevOffsetHeight = list.offsetHeight;
-        //const prevScrollTop = list.scrollTop;
-
+        const { prevScrollTop, prevOffsetHeight } = this;
         this.setState({ playerOpened: false }, () => {
-            if (list.scrollTop === this.prevScrollTop) {
-                list.scrollTop -= Math.abs(this.prevOffsetHeight - list.offsetHeight);
+            if (list.scrollTop === prevScrollTop) {
+                list.scrollTop -= Math.abs(prevOffsetHeight - list.offsetHeight);
             }
         });
     };
@@ -523,7 +565,7 @@ class MessagesList extends React.Component {
         this.deleteHistory(message_ids);
     };
 
-    async handleSelectChat(chatId, previousChatId, messageId, previousMessageId) {
+    async handleSelectChat(chatId, previousChatId, messageId, previousMessageId, ignoreUnread = false) {
         const chat = ChatStore.get(chatId);
         const previousChat = ChatStore.get(previousChatId);
         // console.log ( '%c%s', 'color: green; font: 1.2rem/1 Tahoma;', `selectChat messageId=${messageId}, prevMessageId=${previousMessageId}` );
@@ -550,7 +592,7 @@ class MessagesList extends React.Component {
 
             const unread = !messageId && chat.unread_count > 1;
             let fromMessageId = 0;
-            if (unread && chat.last_read_inbox_message_id) {
+            if (!ignoreUnread && unread && chat.last_read_inbox_message_id) {
                 fromMessageId = chat.last_read_inbox_message_id;
             } else if (messageId) {
                 fromMessageId = messageId;
@@ -632,6 +674,14 @@ class MessagesList extends React.Component {
             if (previousChatId !== chatId && !this.props.filter) {
                 // getChatFullInfo(chatId);
                 getChatMedia(chatId);
+                if (this.props.options) {
+                    const { botStartMessage } = this.props.options;
+                    if (botStartMessage && canSendMessages(chatId) && isGroupChat(chatId)) {
+                        const { botUserId, parameter } = botStartMessage;
+
+                        await sendBotStartMessage(chatId, botUserId, parameter);
+                    }
+                }
             }
         } else {
             sessionId.loading = true;
@@ -1404,10 +1454,11 @@ class MessagesList extends React.Component {
 
         const chat = ChatStore.get(chatId);
 
-        if (history.some(x => x.chat_id === chatId && x.id === messageId || !messageId && chat && chat.last_message.id === x.id)) {
+        const hasLastMessage = history.some(x => x.chat_id === chatId && chat && chat.last_message && chat.last_message.id === x.id);
+        if (hasLastMessage) {
             this.scrollToBottom();
         } else {
-            this.handleSelectChat(chatId, chatId, messageId, messageId);
+            this.handleSelectChat(chatId, chatId, 0, messageId, true);
         }
     };
 
@@ -1676,13 +1727,17 @@ class MessagesList extends React.Component {
                         {this.messages}
                     </div>
                 </div>
-                <ActionBar chatId={chatId} />
+                <div className='messages-list-top-panel'>
+                    <GroupCallJoinPanel chatId={chatId}/>
+                    <ActionBar chatId={chatId} />
+                </div>
                 <Placeholder />
                 {scrollDownVisible && (
                     <ScrollDownButton ref={this.scrollDownButtonRef} onClick={this.handleScrollDownClick} />
                 )}
                 <FilesDropTarget />
                 <StickersHint />
+                {/*<InputBoxHints />*/}
             </div>
         );
     }
@@ -1691,6 +1746,7 @@ class MessagesList extends React.Component {
 MessagesList.propTypes = {
     chatId: PropTypes.number.isRequired,
     messageId: PropTypes.number,
+    options: PropTypes.object,
     filter: PropTypes.object
 };
 

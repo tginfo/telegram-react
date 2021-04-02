@@ -1061,6 +1061,14 @@ function loadMessageContents(store, messages) {
                     loadGameThumbnailContent(store, game, message);
                     break;
                 }
+                case 'messageInvoice': {
+                    const { photo } = content;
+
+                    loadBigPhotoContent(store, photo, message);
+                    loadPhotoContent(store, photo, message);
+                    loadPhotoThumbnailContent(store, photo, message);
+                    break;
+                }
                 case 'messageLocation': {
                     const { location } = content;
 
@@ -1205,7 +1213,7 @@ function saveAnimation(animation, message) {
 
     const { id: fileId } = file;
 
-    saveOrDownload(file, file_name || fileId, message || animation, () =>
+    saveOrDownload(file, file_name || fileId + '.mp4', message || animation, () =>
         FileStore.updateAnimationBlob(chatId, messageId, fileId)
     );
 }
@@ -1237,7 +1245,7 @@ function saveVideo(video, message) {
 
     const { id: fileId } = file;
 
-    saveOrDownload(file, file_name || fileId, message || video, () =>
+    saveOrDownload(file, file_name || fileId + '.mp4', message || video, () =>
         FileStore.updateVideoBlob(chatId, messageId, fileId)
     );
 }
@@ -1396,6 +1404,7 @@ export function getMediaMinithumbnail(chatId, messageId) {
             }
             break;
         }
+        case 'messageInvoice':
         case 'messagePhoto': {
             const { photo } = content;
             if (photo && photo.minithumbnail) {
@@ -1468,6 +1477,7 @@ export function getMediaThumbnail(chatId, messageId) {
             }
             break;
         }
+        case 'messageInvoice':
         case 'messagePhoto': {
             const [width, height, file] = getMediaFile(chatId, messageId, PHOTO_SIZE);
 
@@ -1576,6 +1586,7 @@ function getMediaFile(chatId, messageId, size) {
             }
             break;
         }
+        case 'messageInvoice':
         case 'messagePhoto': {
             const { photo } = content;
             if (photo) {
@@ -1685,6 +1696,13 @@ function cancelLoadMediaViewerContent(messages) {
                     cancelLoadAnimationContent(animation);
                     break;
                 }
+                case 'messageInvoice': {
+                    const { photo } = content;
+                    if (!photo) break;
+
+                    cancelLoadBigPhotoContent(photo);
+                    break;
+                }
                 case 'messagePhoto': {
                     const { photo } = content;
                     if (!photo) break;
@@ -1790,6 +1808,12 @@ function loadMediaViewerContent(messages, useSizeLimit = false) {
                     const { document } = content;
 
                     loadDocumentContent(store, document, message, useSizeLimit);
+                    break;
+                }
+                case 'messageInvoice': {
+                    const { photo } = content;
+
+                    loadBigPhotoContent(store, photo, message);
                     break;
                 }
                 case 'messagePhoto': {
@@ -1953,13 +1977,9 @@ function loadProfileMediaViewerContent(chatId, photos) {
     photos.forEach(photo => {
         switch (photo['@type']) {
             case 'chatPhoto': {
-                const { small, big } = photo;
+                photo = getProfilePhoto(photo);
+                if (!photo) break;
 
-                loadChatFileContent(store, small, chatId);
-                loadChatFileContent(store, big, chatId);
-                break;
-            }
-            case 'profilePhoto': {
                 const userId = getChatUserId(chatId);
 
                 const { small, big } = photo;
@@ -1968,10 +1988,14 @@ function loadProfileMediaViewerContent(chatId, photos) {
                 loadUserFileContent(store, big, userId);
                 break;
             }
-            case 'userProfilePhoto': {
-                photo = getProfilePhoto(photo);
-                if (!photo) break;
+            case 'chatPhotoInfo': {
+                const { small, big } = photo;
 
+                loadChatFileContent(store, small, chatId);
+                loadChatFileContent(store, big, chatId);
+                break;
+            }
+            case 'profilePhoto': {
                 const userId = getChatUserId(chatId);
 
                 const { small, big } = photo;

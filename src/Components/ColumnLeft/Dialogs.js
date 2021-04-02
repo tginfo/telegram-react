@@ -52,7 +52,6 @@ class Dialogs extends Component {
             showArchive: false,
             archiveTitle: null,
 
-            mainItems: [],
             archiveItems: [],
 
             timeout: defaultTimeout,
@@ -74,7 +73,6 @@ class Dialogs extends Component {
             cache,
             showArchive,
             archiveTitle,
-            mainItems,
             archiveItems,
             openSearch,
             openArchive,
@@ -99,10 +97,6 @@ class Dialogs extends Component {
         }
 
         if (nextState.archiveItems !== archiveItems) {
-            return true;
-        }
-
-        if (nextState.mainItems !== mainItems) {
             return true;
         }
 
@@ -435,7 +429,6 @@ class Dialogs extends Component {
             cache,
             showArchive,
             archiveTitle,
-            mainItems,
             archiveItems,
             meChatId,
             openSettings,
@@ -449,8 +442,8 @@ class Dialogs extends Component {
             searchText
         } = this.state;
 
-        const mainCacheItems = cache ? cache.chats || [] : null;
-        const archiveCacheItems = cache ? cache.archiveChats || [] : null;
+        const mainCacheItems = cache && cache.chats ? cache.chats : null;
+        const archiveCacheItems = cache && cache.archiveChats ? cache.archiveChats : null;
 
         return (
             <>
@@ -472,10 +465,6 @@ class Dialogs extends Component {
                                     type='chatListMain'
                                     ref={this.dialogListRef}
                                     cacheItems={mainCacheItems}
-                                    items={mainItems}
-                                    showArchive={showArchive}
-                                    archiveTitle={archiveTitle}
-                                    open={true}
                                     onSaveCache={this.handleSaveCache}
                                 />
                             </div>
@@ -493,7 +482,7 @@ class Dialogs extends Component {
                                 />
                             </CSSTransition>
                         </div>
-                        <UpdatePanel />
+                        {/*<UpdatePanel />*/}
                     </div>
 
                     <SidebarPage open={openArchive} timeout={timeout} onClose={this.handleCloseArchive}>

@@ -10,23 +10,26 @@ import classNames from 'classnames';
 import { compose } from '../Utils/HOC';
 import withLanguage from '../Language';
 import withSnackbarNotifications from '../Notifications';
-import PipPlayer from './Player/PipPlayer';
-import ForwardDialog from './Popup/ForwardDialog';
+import Actions from './Actions';
+import Call from './Calls/Call';
 import ChatInfo from './ColumnRight/ChatInfo';
 import Dialogs from './ColumnLeft/Dialogs';
 import DialogDetails from './ColumnMiddle/DialogDetails';
+import ForwardDialog from './Popup/ForwardDialog';
+import GroupCall from './Calls/GroupCall';
 import InstantViewer from './InstantView/InstantViewer';
 import MediaViewer from './Viewer/MediaViewer';
+import PipPlayer from './Player/PipPlayer';
 import ProfileMediaViewer from './Viewer/ProfileMediaViewer';
 import { highlightMessage } from '../Actions/Client';
 import AppStore from '../Stores/ApplicationStore';
+import CallStore from '../Stores/CallStore';
 import ChatStore from '../Stores/ChatStore';
 import InstantViewStore from '../Stores/InstantViewStore';
 import UserStore from '../Stores/UserStore';
 import PlayerStore from '../Stores/PlayerStore';
 import TdLibController from '../Controllers/TdLibController';
 import '../TelegramApp.css';
-import Actions from './Actions';
 
 class MainPage extends React.Component {
     constructor(props) {
@@ -43,7 +46,9 @@ class MainPage extends React.Component {
             isSmallWidth,
             forwardInfo: null,
             instantViewContent: null,
-            videoInfo: null
+            videoInfo: null,
+            groupCallId: 0,
+            callId: 0
         };
     }
 
@@ -56,6 +61,8 @@ class MainPage extends React.Component {
         AppStore.on('clientUpdatePageWidth', this.onClientUpdatePageWidth);
         AppStore.on('clientUpdateProfileMediaViewerContent', this.onClientUpdateProfileMediaViewerContent);
         AppStore.on('clientUpdateForward', this.onClientUpdateForward);
+        CallStore.on('clientUpdateGroupCallPanel', this.onClientUpdateGroupCallPanel);
+        CallStore.on('clientUpdateCallPanel', this.onClientUpdateCallPanel);
         InstantViewStore.on('clientUpdateInstantViewContent', this.onClientUpdateInstantViewContent);
         PlayerStore.on('clientUpdatePictureInPicture', this.onClientUpdatePictureInPicture);
     }
@@ -69,9 +76,28 @@ class MainPage extends React.Component {
         AppStore.off('clientUpdatePageWidth', this.onClientUpdatePageWidth);
         AppStore.off('clientUpdateProfileMediaViewerContent', this.onClientUpdateProfileMediaViewerContent);
         AppStore.off('clientUpdateForward', this.onClientUpdateForward);
+        CallStore.off('clientUpdateGroupCallPanel', this.onClientUpdateGroupCallPanel);
+        CallStore.off('clientUpdateCallPanel', this.onClientUpdateCallPanel);
         InstantViewStore.off('clientUpdateInstantViewContent', this.onClientUpdateInstantViewContent);
         PlayerStore.off('clientUpdatePictureInPicture', this.onClientUpdatePictureInPicture);
     }
+
+    onClientUpdateCallPanel = update => {
+        const { opened, callId } = update;
+
+        this.setState({
+            callId: opened ? callId : 0
+        });
+    };
+
+    onClientUpdateGroupCallPanel = update => {
+        const { opened } = update;
+        const { currentGroupCall } = CallStore;
+
+        this.setState({
+            groupCallId: currentGroupCall && opened ? currentGroupCall.groupCallId : 0
+        });
+    };
 
     onClientUpdatePictureInPicture = update => {
         const { videoInfo } = update;
@@ -96,9 +122,9 @@ class MainPage extends React.Component {
     };
 
     onClientUpdateOpenChat = update => {
-        const { chatId, messageId, popup } = update;
+        const { chatId, messageId, popup, options } = update;
 
-        this.handleSelectChat(chatId, messageId, popup);
+        this.handleSelectChat(chatId, messageId, popup, options || AppStore.chatSelectOptions);
     };
 
     onClientUpdateOpenUser = update => {
@@ -131,7 +157,7 @@ class MainPage extends React.Component {
         this.setState({ forwardInfo: info });
     };
 
-    handleSelectChat = (chatId, messageId = null, popup = false) => {
+    handleSelectChat = (chatId, messageId = null, popup = false, options = null) => {
         const currentChatId = AppStore.getChatId();
         const currentDialogChatId = AppStore.dialogChatId;
         const currentMessageId = AppStore.getMessageId();
@@ -147,15 +173,15 @@ class MainPage extends React.Component {
             return;
         }
 
-        if (currentChatId === chatId && messageId && currentMessageId === messageId) {
+        if (currentChatId === chatId && messageId && currentMessageId === messageId && !options) {
             this.dialogDetailsRef.current.scrollToMessage();
             if (messageId) {
                 highlightMessage(chatId, messageId);
             }
-        } else if (currentChatId === chatId && !messageId) {
+        } else if (currentChatId === chatId && !messageId && !options) {
             this.dialogDetailsRef.current.scrollToStart();
         } else {
-            TdLibController.setChatId(chatId, messageId);
+            TdLibController.setChatId(chatId, messageId, options);
         }
     };
 
@@ -179,6 +205,8 @@ class MainPage extends React.Component {
             profileMediaViewerContent,
             forwardInfo,
             videoInfo,
+            callId,
+            groupCallId,
             isSmallWidth
         } = this.state;
 
@@ -194,11 +222,13 @@ class MainPage extends React.Component {
                     {isChatDetailsVisible && <ChatInfo />}
                 </div>
                 <Actions/>
-                {instantViewContent && <InstantViewer {...instantViewContent} />}
-                {mediaViewerContent && <MediaViewer {...mediaViewerContent} />}
-                {profileMediaViewerContent && <ProfileMediaViewer {...profileMediaViewerContent} />}
-                {forwardInfo && <ForwardDialog {...forwardInfo} />}
-                {videoInfo && <PipPlayer {...videoInfo}/>}
+                {Boolean(instantViewContent) && <InstantViewer {...instantViewContent} />}
+                {Boolean(mediaViewerContent) && <MediaViewer {...mediaViewerContent} />}
+                {Boolean(profileMediaViewerContent) && <ProfileMediaViewer {...profileMediaViewerContent} />}
+                {Boolean(forwardInfo) && <ForwardDialog {...forwardInfo} />}
+                {Boolean(videoInfo) && <PipPlayer {...videoInfo}/>}
+                {Boolean(groupCallId) && <GroupCall groupCallId={groupCallId}/>}
+                {Boolean(callId) && <Call callId={callId}/>}
             </>
         );
     }

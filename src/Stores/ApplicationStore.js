@@ -7,9 +7,10 @@
 
 import EventEmitter from './EventEmitter';
 import ActionScheduler from '../Utils/ActionScheduler';
-import { closeChat } from '../Actions/Client';
+import { closeChat, showAlert } from '../Actions/Client';
 import { subscribeNotifications } from '../registerServiceWorker';
 import { PAGE_WIDTH_SMALL } from '../Constants';
+import LStore from './LocalizationStore';
 import TdLibController from '../Controllers/TdLibController';
 
 class ApplicationStore extends EventEmitter {
@@ -84,6 +85,9 @@ class ApplicationStore extends EventEmitter {
                 switch (update.authorization_state['@type']) {
                     case 'authorizationStateLoggingOut':
                         this.loggingOut = true;
+                        if (this.chatId) {
+                            this.setChatId(0);
+                        }
                         break;
                     case 'authorizationStateWaitTdlibParameters':
                         TdLibController.sendTdParameters();
@@ -167,7 +171,11 @@ class ApplicationStore extends EventEmitter {
                                 }
                                 break;
                             default:
-                                alert(text.text);
+                                showAlert({
+                                    title: LStore.getString('AppName'),
+                                    message: text,
+                                    ok: LStore.getString('OK')
+                                });
                                 break;
                         }
                     }
@@ -182,6 +190,10 @@ class ApplicationStore extends EventEmitter {
 
     onClientUpdate = update => {
         switch (update['@type']) {
+            case 'clientUpdateAlert': {
+                this.emit('clientUpdateAlert', update);
+                break;
+            }
             case 'clientUpdateAppInactive': {
                 this.emit('clientUpdateAppInactive');
                 break;
@@ -208,8 +220,9 @@ class ApplicationStore extends EventEmitter {
                     '@type': 'clientUpdateChatId',
                     nextChatId: update.chatId,
                     nextMessageId: update.messageId,
+                    options: update.options,
                     previousChatId: this.chatId,
-                    previousMessageId: this.messageId
+                    previousMessageId: this.messageId,
                 };
 
                 this.chatId = update.chatId;
@@ -218,12 +231,15 @@ class ApplicationStore extends EventEmitter {
                 this.emit('clientUpdateChatId', extendedUpdate);
                 break;
             }
-            case 'clientUpdateTdLibDatabaseExists': {
-                this.emit('clientUpdateTdLibDatabaseExists', update);
-                break;
-            }
             case 'clientUpdateDeleteMessages': {
                 this.emit('clientUpdateDeleteMessages', update);
+                break;
+            }
+            case 'clientUpdateDialogChatId': {
+                const { chatId } = update;
+                this.dialogChatId = chatId;
+
+                this.emit('clientUpdateDialogChatId', update);
                 break;
             }
             case 'clientUpdateDialogsReady': {
@@ -238,6 +254,39 @@ class ApplicationStore extends EventEmitter {
                 this.emit('clientUpdateDragging', update);
                 break;
             }
+            case 'clientUpdateFocusWindow': {
+                if (!this.authorizationState) {
+                    break;
+                }
+
+                TdLibController.send({
+                    '@type': 'setOption',
+                    name: 'online',
+                    value: { '@type': 'optionValueBoolean', value: update.focused }
+                });
+
+                this.emit('clientUpdateFocusWindow', update);
+                break;
+            }
+            case 'clientUpdateForward': {
+                this.emit('clientUpdateForward', update);
+                break;
+            }
+            case 'clientUpdateInputPasswordAlert': {
+                this.emit('clientUpdateInputPasswordAlert', update);
+                break;
+            }
+            case 'clientUpdateLeaveChat': {
+                if (update.inProgress && this.chatId === update.chatId) {
+                    TdLibController.setChatId(0);
+                }
+
+                break;
+            }
+            case 'clientUpdateLeaveVoiceChatAlert': {
+                this.emit('clientUpdateLeaveVoiceChatAlert', update);
+                break;
+            }
             case 'clientUpdateMediaViewerContent': {
                 const { content } = update;
                 this.mediaViewerContent = content;
@@ -247,6 +296,14 @@ class ApplicationStore extends EventEmitter {
             }
             case 'clientUpdateNewContentAvailable': {
                 this.emit('clientUpdateNewContentAvailable', update);
+                break;
+            }
+            case 'clientUpdateOpenGameAlert': {
+                this.emit('clientUpdateOpenGameAlert', update);
+                break;
+            }
+            case 'clientUpdateOpenUrlAlert': {
+                this.emit('clientUpdateOpenUrlAlert', update);
                 break;
             }
             case 'clientUpdatePageWidth': {
@@ -276,12 +333,24 @@ class ApplicationStore extends EventEmitter {
                 this.recording = false;
                 break;
             }
+            case 'clientUpdateReportChat': {
+                this.emit('clientUpdateReportChat', update);
+                break;
+            }
+            case 'clientUpdateRequestBlockSender': {
+                this.emit('clientUpdateRequestBlockSender', update);
+                break;
+            }
             case 'clientUpdateRequestClearHistory': {
                 this.emit('clientUpdateRequestClearHistory', update);
                 break;
             }
             case 'clientUpdateRequestLeaveChat': {
                 this.emit('clientUpdateRequestLeaveChat', update);
+                break;
+            }
+            case 'clientUpdateRequestUrlAlert': {
+                this.emit('clientUpdateRequestUrlAlert', update);
                 break;
             }
             case 'clientUpdateSearchChat': {
@@ -312,6 +381,10 @@ class ApplicationStore extends EventEmitter {
                 this.emit('clientUpdateSetPhone', update);
                 break;
             }
+            case 'clientUpdateSnackbar': {
+                this.emit('clientUpdateSnackbar', update);
+                break;
+            }
             case 'clientUpdateSetPhoneResult': {
                 this.emit('clientUpdateSetPhoneResult', update);
                 break;
@@ -320,40 +393,18 @@ class ApplicationStore extends EventEmitter {
                 this.emit('clientUpdateSetPhoneError', update);
                 break;
             }
+            case 'clientUpdateChatSelect': {
+                this.chatSelectOptions = update.options;
+
+                this.emit('clientUpdateChatSelect', update);
+                break;
+            }
+            case 'clientUpdateTdLibDatabaseExists': {
+                this.emit('clientUpdateTdLibDatabaseExists', update);
+                break;
+            }
             case 'clientUpdateUnpinMessage': {
                 this.emit('clientUpdateUnpinMessage', update);
-                break;
-            }
-            case 'clientUpdateDialogChatId': {
-                const { chatId } = update;
-                this.dialogChatId = chatId;
-
-                this.emit('clientUpdateDialogChatId', update);
-                break;
-            }
-            case 'clientUpdateFocusWindow': {
-                if (!this.authorizationState) {
-                    break;
-                }
-
-                TdLibController.send({
-                    '@type': 'setOption',
-                    name: 'online',
-                    value: { '@type': 'optionValueBoolean', value: update.focused }
-                });
-
-                this.emit('clientUpdateFocusWindow', update);
-                break;
-            }
-            case 'clientUpdateForward': {
-                this.emit('clientUpdateForward', update);
-                break;
-            }
-            case 'clientUpdateLeaveChat': {
-                if (update.inProgress && this.chatId === update.chatId) {
-                    TdLibController.setChatId(0);
-                }
-
                 break;
             }
         }

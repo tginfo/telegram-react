@@ -9,6 +9,7 @@ import EventEmitter from '../Stores/EventEmitter';
 import packageJson from '../../package.json';
 import { stringToBoolean, getBrowser, getOSName } from '../Utils/Common';
 import {
+    DATABASE_NAME, DATABASE_TEST_NAME,
     VERBOSITY_JS_MAX,
     VERBOSITY_JS_MIN,
     VERBOSITY_MAX,
@@ -18,6 +19,7 @@ import {
 } from '../Constants';
 import TdClient from 'tdweb/dist/tdweb';
 // import TdClient from '@arseny30/tdweb/dist/tdweb';
+// import TdClient from '../../public/tdweb';
 
 function databaseExists(dbname, callback) {
     var req = indexedDB.open(dbname);
@@ -48,25 +50,26 @@ class TdLibController extends EventEmitter {
 
         this.disableLog = true;
         this.streaming = true;
+        this.calls = false;
+
+        this.setParameters(window.location);
     }
 
-    init = location => {
-        this.setParameters(location);
-
+    init = () => {
         const { verbosity, jsVerbosity, useTestDC, readOnly, fastUpdating, useDatabase, mode } = this.parameters;
-        const dbName = useTestDC ? 'tdlib_test' : 'tdlib';
+        const instanceName = useTestDC ? DATABASE_TEST_NAME : DATABASE_NAME;
 
-        databaseExists(dbName, exists => {
+        databaseExists(instanceName, exists => {
             this.clientUpdate({ '@type': 'clientUpdateTdLibDatabaseExists', exists });
 
             let options = {
                 logVerbosityLevel: verbosity,
                 jsLogVerbosityLevel: jsVerbosity,
-                mode: mode, // 'wasm-streaming'/'wasm'/'asmjs'
-                prefix: useTestDC ? 'tdlib_test' : 'tdlib',
-                readOnly: readOnly,
+                mode, // 'wasm-streaming', 'wasm', 'asmjs'
+                instanceName,
+                readOnly,
                 isBackground: false,
-                useDatabase: useDatabase,
+                useDatabase,
                 wasmUrl: `${WASM_FILE_NAME}?_sw-precache=${WASM_FILE_HASH}`
                 // onUpdate: update => this.emit('update', update)
             };
@@ -159,6 +162,9 @@ class TdLibController extends EventEmitter {
         if (params.has('streaming')) {
             this.streaming = stringToBoolean(params.get('streaming'));
         }
+        if (params.has('calls')) {
+            this.calls = stringToBoolean(params.get('calls'));
+        }
     };
 
     send = request => {
@@ -230,6 +236,15 @@ class TdLibController extends EventEmitter {
             // }
         });
 
+        this.send({
+            '@type': 'setOption',
+            name: 'use_quick_ack',
+            value: {
+                '@type': 'optionValueBoolean',
+                value: true
+            }
+        });
+
         if (this.parameters.tag && this.parameters.tagVerbosity) {
             for (let i = 0; i < this.parameters.tag.length; i++) {
                 let tag = this.parameters.tag[i];
@@ -250,11 +265,12 @@ class TdLibController extends EventEmitter {
         });
     }
 
-    setChatId = (chatId, messageId = null) => {
+    setChatId = (chatId, messageId = null, options = { }) => {
         const update = {
             '@type': 'clientUpdateChatId',
             chatId,
-            messageId
+            messageId,
+            options
         };
 
         this.clientUpdate(update);
@@ -269,5 +285,5 @@ class TdLibController extends EventEmitter {
 }
 
 const controller = new TdLibController();
-
+window.controller = controller;
 export default controller;

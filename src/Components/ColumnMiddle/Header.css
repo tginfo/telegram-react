@@ -100,7 +100,12 @@
 }
 
 .header-right-second-button {
-    margin: 6px 0 6px 12px;
+    margin: 6px 0 6px 20px;
+}
+
+.header-right-buttons {
+    margin: 6px 6px 6px 20px;
+    display: flex;
 }
 
 .cursor-pointer {

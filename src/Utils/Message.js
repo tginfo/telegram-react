@@ -12,17 +12,18 @@ import Poll from '../Components/Message/Media/Poll';
 import SafeLink from '../Components/Additional/SafeLink';
 import dateFormat from '../Utils/Date';
 import { searchChat, setMediaViewerContent } from '../Actions/Client';
-import { getChatTitle, isMeChat } from './Chat';
+import { getChatTitle, getChatUserId, isMeChat, isPrivateChat } from './Chat';
 import { openUser } from '../Actions/Client';
 import { getFitSize, getPhotoSize, getSize } from './Common';
 import { download, saveOrDownload, supportsStreaming } from './File';
 import { getAudioTitle } from './Media';
 import { getDecodedUrl } from './Url';
 import { getServiceMessageContent } from './ServiceMessage';
-import { getUserFullName, isMeUser } from './User';
+import { getUserFullName, isBotUser, isMeUser } from './User';
 import { getBlockAudio } from './InstantView';
 import { LOCATION_HEIGHT, LOCATION_SCALE, LOCATION_WIDTH, LOCATION_ZOOM, PHOTO_DISPLAY_SIZE, PHOTO_SIZE, PHOTO_THUMBNAIL_SIZE, PLAYER_AUDIO_2X_MIN_DURATION } from '../Constants';
 import AppStore from '../Stores/ApplicationStore';
+import CallStore from '../Stores/CallStore';
 import ChatStore from '../Stores/ChatStore';
 import FileStore from '../Stores/FileStore';
 import LStore from '../Stores/LocalizationStore';
@@ -30,6 +31,16 @@ import MessageStore from '../Stores/MessageStore';
 import PlayerStore from '../Stores/PlayerStore';
 import UserStore from '../Stores/UserStore';
 import TdLibController from '../Controllers/TdLibController';
+
+export function isCallMessage(chatId, messageId) {
+    const message = MessageStore.get(chatId, messageId);
+    if (!message) return false;
+
+    const { content } = message;
+    if (!content) return false;
+
+    return content && content['@type'] === 'messageCall';
+}
 
 export function isEmptySelection(selection) {
     // new line symbol
@@ -101,6 +112,10 @@ export function isMetaBubble(chatId, messageId) {
     switch (content['@type']) {
         case 'messageAnimation': {
             return true;
+        }
+        case 'messageInvoice': {
+            const { photo } = content;
+            return Boolean(photo);
         }
         case 'messageLocation': {
             return true;
@@ -272,11 +287,41 @@ function getFormattedText(formattedText, t = k => k, options = { }) {
                     break;
                 }
                 case 'textEntityTypeBotCommand': {
-                    const command = entityText.length > 0 && entityText[0] === '/' ? substring(entityText, 1) : entityText;
+                    let username = '';
+                    let command = entityText.length > 0 && entityText[0] === '/' ? substring(entityText, 1) : entityText;
+
+                    const split = command.split('@');
+                    if (split.length === 2) {
+                        command = split[0];
+                        username = split[1];
+                    } else {
+                        const chatId = AppStore.getChatId();
+                        if (!isPrivateChat(chatId)) {
+                            let botUserId = 0;
+
+                            const { chatId, messageId } = options;
+                            const message = MessageStore.get(chatId, messageId);
+                            if (message) {
+                                const { sender, via_bot_user_id } = message;
+                                botUserId = sender.user_id;
+                                if (via_bot_user_id) {
+                                    botUserId = via_bot_user_id;
+                                }
+
+                                if (isBotUser(botUserId)) {
+                                    const bot = UserStore.get(botUserId);
+                                    if (bot) {
+                                        username = bot.username;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     result.push(
-                        <a key={entityKey} onClick={stopPropagation} href={`tg://bot_command?command=${command}&bot=`}>
+                        <SafeLink key={entityKey} url={`tg://bot_command?command=${command}` + (username ? `&bot=${username}` : '')}>
                             {entityText}
-                        </a>
+                        </SafeLink>
                     );
                     break;
                 }
@@ -403,7 +448,7 @@ function getFormattedText(formattedText, t = k => k, options = { }) {
     return result;
 }
 
-function getText(message, meta, t = k => k) {
+function getText(message, meta, t = k => k, options = { }) {
     if (!message) return null;
 
     let result = [];
@@ -414,7 +459,7 @@ function getText(message, meta, t = k => k) {
     const { text, caption } = content;
 
     if (text && text['@type'] === 'formattedText' && text.text) {
-        result = getFormattedText(text, t);
+        result = getFormattedText(text, t, options);
     } else if (caption && caption['@type'] === 'formattedText' && caption.text) {
         const formattedText = getFormattedText(caption, t);
         if (formattedText) {
@@ -675,8 +720,13 @@ function getContent(message, t = key => key) {
         case 'messageGameScore': {
             return getServiceMessageContent(message);
         }
-        case 'messageInvoice': {
+        case 'messageInviteVoiceChatParticipants': {
             return getServiceMessageContent(message);
+        }
+        case 'messageInvoice': {
+            const { title } = content;
+
+            return title + caption;
         }
         case 'messageLocation': {
             return t('AttachLocation') + caption;
@@ -734,6 +784,12 @@ function getContent(message, t = key => key) {
         case 'messageVideoNote': {
             return t('AttachRound') + caption;
         }
+        case 'messageVoiceChatStarted': {
+            return getServiceMessageContent(message);
+        }
+        case 'messageVoiceChatEnded': {
+            return getServiceMessageContent(message);
+        }
         case 'messageVoiceNote': {
             return t('AttachAudio') + caption;
         }
@@ -778,7 +834,7 @@ function isVideoMessage(chatId, messageId) {
         }
         case 'messageText': {
             const { web_page } = content;
-            return Boolean(web_page.video);
+            return web_page && Boolean(web_page.video);
         }
         default: {
             return false;
@@ -1197,6 +1253,20 @@ function openAudio(audio, message, fileCancel) {
     });
 }
 
+function openCall(message) {
+    if (!message) return;
+
+    if (!CallStore.p2pCallsEnabled) return;
+    const { chat_id, content } = message;
+    if (!content) return;
+    if (content['@type'] !== 'messageCall') return;
+
+    const { is_video } = content;
+
+    const userId = getChatUserId(chat_id);
+    CallStore.p2pStartCall(userId, is_video);
+}
+
 function openChatPhoto(photo, message, fileCancel) {
     if (!photo) return;
     if (!message) return;
@@ -1504,6 +1574,13 @@ function openMedia(chatId, messageId, fileCancel = true) {
 
             break;
         }
+        case 'messageCall': {
+            if (message) {
+                openCall(message);
+            }
+
+            break;
+        }
         case 'messageChatChangePhoto': {
             const { photo } = content;
             if (photo) {
@@ -1536,6 +1613,7 @@ function openMedia(chatId, messageId, fileCancel = true) {
 
             break;
         }
+        case 'messageInvoice':
         case 'messagePhoto': {
             const { photo } = content;
             if (photo) {
@@ -2769,6 +2847,18 @@ export function getMessageStyle(chatId, messageId) {
         }
         case 'messageGame': {
             return { maxWidth : PHOTO_DISPLAY_SIZE + 10 + 9 * 2 };
+        }
+        case 'messageInvoice': {
+            const { photo } = content;
+            if (!photo) return null;
+
+            const size = getSize(photo.sizes, PHOTO_SIZE);
+            if (!size) return null;
+
+            const fitSize = getFitSize(size, PHOTO_DISPLAY_SIZE, true);
+            if (!fitSize) return null;
+
+            return { width: fitSize.width };
         }
         case 'messagePhoto': {
             const { photo, caption } = content;

@@ -13,8 +13,18 @@ import ArrowBackIcon from '../../Assets/Icons/Back';
 import DialogsList from './DialogsList';
 
 class Archive extends React.Component {
+    handleClick = () => {
+        const { innerListRef } = this.props;
+        if (!innerListRef) return;
+
+        const { current: list } = innerListRef;
+        if (!list) return;
+
+        list.scrollToTop();
+    };
+
     render() {
-        const { t, innerListRef, items, cacheItems, onClose } = this.props;
+        const { t, innerListRef, cacheItems, onClose } = this.props;
 
         return (
             <>
@@ -22,7 +32,7 @@ class Archive extends React.Component {
                     <IconButton className='header-left-button main-menu-button' onClick={onClose}>
                         <ArrowBackIcon />
                     </IconButton>
-                    <div className='header-status grow cursor-pointer'>
+                    <div className='header-status grow cursor-pointer' onClick={this.handleClick}>
                         <span className='header-status-content'>{t('ArchivedChats')}</span>
                     </div>
                 </div>
@@ -31,8 +41,6 @@ class Archive extends React.Component {
                         type='chatListArchive'
                         ref={innerListRef}
                         cacheItems={cacheItems}
-                        open={true}
-                        items={items}
                     />
                 </div>
             </>

@@ -16,9 +16,16 @@
 // This link also includes instructions on opting out of this behavior.
 
 import { arrayBufferToBase64, isAuthorizationReady } from './Utils/Common';
-import { OPTIMIZATIONS_FIRST_START, PLAYER_STREAMING_PRIORITY } from './Constants';
+import { showAlert } from './Actions/Client';
+import {
+    OPTIMIZATIONS_FIRST_START,
+    PLAYER_STREAMING_PRIORITY,
+    STORAGE_REGISTER_KEY,
+    STORAGE_REGISTER_TEST_KEY
+} from './Constants';
 import AppStore from './Stores/ApplicationStore';
 import FileStore from './Stores/FileStore';
+import LStore from './Stores/LocalizationStore';
 import NotificationStore from './Stores/NotificationStore';
 import TdLibController from './Controllers/TdLibController';
 
@@ -36,7 +43,9 @@ export default async function register() {
     console.log('[SW] Register');
 
     if (OPTIMIZATIONS_FIRST_START) {
-        localStorage.setItem('register', 'true');
+        const { useTestDC } = TdLibController.parameters;
+        const registerKey = useTestDC ? STORAGE_REGISTER_TEST_KEY : STORAGE_REGISTER_KEY;
+        localStorage.setItem(registerKey, 'true');
     }
 
     if ('serviceWorker' in navigator) {
@@ -80,6 +89,14 @@ async function registerValidSW(swUrl) {
                         console.log('[SW] New content is available; please refresh.');
 
                         TdLibController.clientUpdate({ '@type': 'clientUpdateNewContentAvailable' });
+                        showAlert({
+                            title: LStore.getString('NewVersionTitle'),
+                            message: LStore.getString('NewVersionText'),
+                            ok: LStore.getString('OK'),
+                            onResult: async () => {
+                                window.location.reload();
+                            }
+                        });
                     } else {
                         // At this point, everything has been precached.
                         // It's the perfect time to display a

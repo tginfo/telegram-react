@@ -6,8 +6,40 @@
  */
 import TdLibController from '../Controllers/TdLibController';
 import { isChatMuted, isChatPinned } from '../Utils/Chat';
+import { openUser } from './Client';
 import { MUTED_VALUE_MAX, MUTED_VALUE_MIN } from '../Constants';
 import ChatStore from '../Stores/ChatStore';
+
+export function openReportChat(chatId, messageIds) {
+    TdLibController.clientUpdate({
+        '@type': 'clientUpdateReportChat',
+        chatId,
+        messageIds
+    });
+}
+
+export async function openSupportChat() {
+    const user = await TdLibController.send({ '@type': 'getSupportUser' });
+    if (!user) return;
+
+    openUser(user.id);
+}
+
+export function openChatList(chatList) {
+    TdLibController.clientUpdate({
+        '@type': 'clientUpdateChatList',
+        chatList
+    });
+}
+
+export function reportChat(chatId, reason, messageids = []) {
+    TdLibController.send({
+        '@type': 'reportChat',
+        chat_id: chatId,
+        reason,
+        message_ids: messageids
+    });
+}
 
 export function clearHistory(chatId) {
     TdLibController.clientUpdate({

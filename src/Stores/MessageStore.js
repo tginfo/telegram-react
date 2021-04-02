@@ -173,6 +173,10 @@ class MessageStore extends EventEmitter {
                 this.emit('updateMessageContentOpened', update);
                 break;
             }
+            case 'updateMessageSendAcknowledged': {
+                this.emit('updateMessageSendAcknowledged', update);
+                break;
+            }
             case 'updateMessageSendSucceeded': {
                 const chat = this.items.get(update.message.chat_id);
                 if (chat) {
@@ -249,6 +253,18 @@ class MessageStore extends EventEmitter {
             }
             case 'clientUpdateEditMessage': {
                 this.emit('clientUpdateEditMessage', update);
+                break;
+            }
+            case 'clientUpdateSendText': {
+                this.emit('clientUpdateSendText', update);
+                break;
+            }
+            case 'clientUpdateStartMessageEditing': {
+                this.emit('clientUpdateStartMessageEditing', update);
+                break;
+            }
+            case 'clientUpdateStopMessageEditing': {
+                this.emit('clientUpdateStopMessageEditing', update);
                 break;
             }
             case 'clientUpdateMessageShake': {

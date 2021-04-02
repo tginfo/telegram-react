@@ -1,9 +1,10 @@
 {
   "homepage": "https://web.tginfo.me",
   "name": "telegram_react",
-  "version": "0.0.835",
+  "version": "0.0.977",
   "private": true,
   "dependencies": {
+    "tdweb": "^1.7.2",
     "@material-ui/core": "^4.9.7",
     "@material-ui/icons": "^4.9.1",
     "@material-ui/lab": "^4.0.0-alpha.46",
@@ -12,17 +13,16 @@
     "emoji-regex": "^8.0.0",
     "i18next": "^19.3.3",
     "iframe-resizer": "^4.2.10",
-    "notistack": "^0.9.9",
+    "notistack": "^0.9.14",
     "opus-media-recorder": "^0.8.0",
     "qr-code-styling": "^1.0.1",
     "react": "^16.12.0",
-    "react-cropper": "^1.3.0",
+    "react-cropper": "^2.0.0",
     "react-dom": "^16.12.0",
     "react-i18next": "^11.3.4",
     "react-router-dom": "^5.0.0",
     "react-scripts": "^3.1.1",
-    "react-transition-group": "^4.3.0",
-    "tdweb": "^1.6.10"
+    "react-transition-group": "^4.3.0"
   },
   "lint-staged": {
     "src/**/*.{js,jsx,json,css}": [

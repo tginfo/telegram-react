@@ -16,8 +16,9 @@ import { isServiceMessage } from './ServiceMessage';
 import { formatPhoneNumber } from './Phone';
 import { getChannelStatus } from './Channel';
 import { loadReplyContents } from './File';
-import { SERVICE_NOTIFICATIONS_USER_ID } from '../Constants';
+import { SERVICE_NOTIFICATIONS_USER_IDS } from '../Constants';
 import BasicGroupStore from '../Stores/BasicGroupStore';
+import CallStore from '../Stores/CallStore';
 import ChatStore from '../Stores/ChatStore';
 import FileStore from '../Stores/FileStore';
 import LStore from '../Stores/LocalizationStore';
@@ -26,6 +27,114 @@ import NotificationStore from '../Stores/NotificationStore';
 import SupergroupStore from '../Stores/SupergroupStore';
 import UserStore from '../Stores/UserStore';
 import TdLibController from '../Controllers/TdLibController';
+
+export function canBeReported(chatId) {
+    const chat = ChatStore.get(chatId);
+    if (!chat) return false;
+
+    return chat.can_be_reported;
+}
+
+export function canBeCalled(chatId) {
+    const userId = getChatUserId(chatId);
+    const fullInfo = UserStore.getFullInfo(userId);
+    if (!fullInfo) return false;
+
+    return fullInfo.can_be_called;
+}
+
+export function canManageVoiceChats(chatId) {
+    const chat = ChatStore.get(chatId);
+    if (!chat) return false;
+
+    let status = null;
+    const { type } = chat;
+    switch (type['@type']) {
+        case 'chatTypeBasicGroup': {
+            const basicGroup = BasicGroupStore.get(getBasicGroupId(chatId));
+            if (!basicGroup) return false;
+
+            status = basicGroup.status;
+            break;
+        }
+        case 'chatTypeSupergroup': {
+            if (isChannelChat(chatId)) return false;
+            
+            const supergroup = SupergroupStore.get(getSupergroupId(chatId));
+            if (!supergroup) return false;
+
+            status = supergroup.status;
+            break;
+        }
+    }
+
+    if (!status) {
+        return false;
+    }
+
+    switch (status['@type']) {
+        case 'chatMemberStatusAdministrator': {
+            return status.can_manage_voice_chats;
+        }
+        case 'chatMemberStatusCreator': {
+            return status.is_member;
+        }
+    }
+
+    return false;
+}
+
+export function getChatSender(chatId) {
+    const chat = ChatStore.get(chatId);
+    if (!chat) return null;
+    if (!chat.type) return null;
+
+    switch (chat.type['@type']) {
+        case 'chatTypeBasicGroup': {
+            return { '@type': 'messageSenderChat', chat_id: chatId };
+        }
+        case 'chatTypeSupergroup': {
+            return { '@type': 'messageSenderChat', chat_id: chatId };
+        }
+        case 'chatTypePrivate':
+        case 'chatTypeSecret': {
+            return { '@type': 'messageSenderUser', user_id: getChatUserId(chatId) };
+        }
+    }
+
+    return null;
+}
+
+export function getChatLocation(chatId) {
+    const supergoupId = getSupergroupId(chatId);
+    if (!supergoupId) return null;
+
+    const fullInfo = SupergroupStore.getFullInfo(supergoupId);
+    if (!fullInfo) return null;
+
+    return fullInfo.location;
+}
+
+export function canSwitchBlocked(chatId) {
+    const chat = ChatStore.get(chatId);
+    if (!chat) return null;
+    if (!chat.type) return null;
+
+    switch (chat.type['@type']) {
+        case 'chatTypeBasicGroup': {
+            return false;
+        }
+        case 'chatTypeSupergroup': {
+            return false;
+        }
+        case 'chatTypePrivate':
+        case 'chatTypeSecret': {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 export function getDeleteChatTitle(chatId, t = x => x) {
     const chat = ChatStore.get(chatId);
@@ -185,7 +294,7 @@ export function canAddChatToList(chatId) {
     if (!positions) return false;
 
     const mainPosition = positions.find(x => x.list['@type'] === 'chatListMain');
-    if (mainPosition && isMeChat(chatId) || chatId === SERVICE_NOTIFICATIONS_USER_ID) {
+    if (mainPosition && isMeChat(chatId) || SERVICE_NOTIFICATIONS_USER_IDS.some(x => x === chatId)) {
         return false;
     }
 
@@ -973,15 +1082,15 @@ export function isChatRead(chatId) {
     return !isMessageUnread(chatId, id);
 }
 
-function getChatTitle(chatId, showSavedMessages = false, t = key => key) {
+function getChatTitle(chatId, showSavedMessages = false) {
     const chat = ChatStore.get(chatId);
     if (!chat) return null;
 
     if (isMeChat(chatId) && showSavedMessages) {
-        return t('SavedMessages');
+        return LStore.i18n.t('SavedMessages');
     }
 
-    return chat.title || t('HiddenName');
+    return chat.title || LStore.i18n.t('HiddenName');
 }
 
 export function getChatType(chatId, t = key => key) {
@@ -1085,6 +1194,12 @@ function getGroupChatMembers(chatId) {
     return fallbackValue;
 }
 
+export function hasChatGroupCall(chatId) {
+    const chat = ChatStore.get(chatId);
+
+    return Boolean(chat && chat.voice_chat_group_call_id);
+}
+
 export async function getChatMedia(chatId) {
     // return;
 
@@ -1092,6 +1207,8 @@ export async function getChatMedia(chatId) {
     if (!chat) return null;
 
     // console.log('[media] getChatMedia start', chatId);
+    const { voice_chat_group_call_id } = chat;
+
     const promises = [];
 
     const limit = 100;
@@ -1166,6 +1283,15 @@ export async function getChatMedia(chatId) {
     } else {
         promises.push(Promise.resolve(null));
     }
+    const call = CallStore.get(voice_chat_group_call_id);
+    if (hasChatGroupCall(chatId) && !call){
+        promises.push(TdLibController.send({
+            '@type': 'getGroupCall',
+            group_call_id: voice_chat_group_call_id
+        }));
+    } else {
+        promises.push(Promise.resolve(call));
+    }
     if (isSupergroup(chatId) && !isChannelChat(chatId)){
         promises.push(TdLibController.send({
             '@type': 'getSupergroupMembers',
@@ -1176,7 +1302,7 @@ export async function getChatMedia(chatId) {
         }));
     }
 
-    const [fullInfo, photoAndVideo, document, audio, url, voiceNote, pinned, groupsInCommon, supergroupMembers] = await Promise.all(promises);
+    const [fullInfo, photoAndVideo, document, audio, url, voiceNote, pinned, groupsInCommon, groupCall, supergroupMembers] = await Promise.all(promises);
     const media = {
         fullInfo,
         photoAndVideo: photoAndVideo.messages,
@@ -1186,6 +1312,7 @@ export async function getChatMedia(chatId) {
         voiceNote: voiceNote.messages,
         pinned: pinned.messages,
         groupsInCommon: groupsInCommon ? groupsInCommon.chat_ids.map(x => ChatStore.get(x)) : [],
+        groupCall,
         supergroupMembers
     }
     // console.log('[media] getChatMedia stop', chatId, media);
@@ -1237,6 +1364,19 @@ async function getChatFullInfo(chatId) {
     if (!request) return null;
 
     return await request;
+}
+
+export function getBasicGroupId(chatId) {
+    const chat = ChatStore.get(chatId);
+    if (!chat) return false;
+
+    const { type } = chat;
+
+    if (type && type['@type'] === 'chatTypeBasicGroup') {
+        return type.basic_group_id;
+    }
+
+    return 0;
 }
 
 function hasBasicGroupId(chatId, basicGroupId) {

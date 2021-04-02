@@ -8,6 +8,16 @@
 import EventEmitter from './EventEmitter';
 import { debounce } from '../Utils/Common';
 import CacheManager from '../Workers/CacheManager';
+import {
+    STORAGE_CACHE_KEY,
+    STORAGE_CACHE_TEST_KEY,
+    STORAGE_CONTACTS_KEY,
+    STORAGE_CONTACTS_TEST_KEY,
+    STORAGE_FILES_KEY,
+    STORAGE_FILES_TEST_KEY,
+    STORAGE_FILTERS_KEY,
+    STORAGE_FILTERS_TEST_KEY, STORAGE_REGISTER_KEY, STORAGE_REGISTER_TEST_KEY
+} from '../Constants';
 import BasicGroupStore from './BasicGroupStore';
 import ChatStore from './ChatStore';
 import FileStore from './FileStore';
@@ -23,11 +33,21 @@ class CacheStore extends EventEmitter {
 
         this.cacheContacts = false;
 
+        const { useTestDC } = TdLibController.parameters;
+        this.cacheKey = useTestDC ? STORAGE_CACHE_TEST_KEY : STORAGE_CACHE_KEY;
+        this.contactsKey = useTestDC ? STORAGE_CONTACTS_TEST_KEY : STORAGE_CONTACTS_KEY;
+        this.filesKey = useTestDC ? STORAGE_FILES_TEST_KEY : STORAGE_FILES_KEY;
+        this.filtersKey = useTestDC ? STORAGE_FILTERS_TEST_KEY : STORAGE_FILTERS_KEY;
+        this.registerKey = useTestDC ? STORAGE_REGISTER_TEST_KEY : STORAGE_REGISTER_KEY;
+
         this.reset();
 
         this.addTdLibListener();
 
-        this.saveInternal = debounce(this.saveInternal, 2000);
+        this.saveInternal = debounce(this.saveInternal, 2000, {
+            leading: false,
+            trailing: true
+        });
     }
 
     reset = () => {
@@ -59,10 +79,10 @@ class CacheStore extends EventEmitter {
                     case 'authorizationStateWaitPhoneNumber':
                     case 'authorizationStateWaitPassword':
                     case 'authorizationStateWaitRegistration': {
-                        CacheManager.remove('cache');
-                        CacheManager.remove('files');
+                        CacheManager.remove(this.cacheKey);
+                        CacheManager.remove(this.filesKey);
                         if (this.cacheContacts) {
-                            CacheManager.remove('contacts');
+                            CacheManager.remove(this.contactsKey);
                         }
                         break;
                     }
@@ -96,15 +116,15 @@ class CacheStore extends EventEmitter {
     };
 
     async load() {
-        // console.log('[cm] getChats start');
         const promises = [];
-        promises.push(CacheManager.load('cache').catch(error => null));
-        promises.push(CacheManager.load('files').catch(error => null));
-        promises.push(CacheManager.load('filters').catch(error => null));
+        promises.push(CacheManager.load(this.cacheKey).catch(error => null));
+        promises.push(CacheManager.load(this.filesKey).catch(error => null));
+        promises.push(CacheManager.load(this.filtersKey).catch(error => null));
         if (this.cacheContacts) {
-            promises.push(CacheManager.load('contacts').catch(error => null));
+            promises.push(CacheManager.load(this.contactsKey).catch(error => null));
         }
         let [cache, files, filters, contacts] = await Promise.all(promises);
+        // console.log('[f] cache.load', files);
 
         let dropCache = false;
         if (cache && cache.chats) {
@@ -153,7 +173,7 @@ class CacheStore extends EventEmitter {
         if (!cache) return;
 
         const { meChat, chats, archiveChats, users, basicGroups, supergroups, files, options } = cache;
-        // console.log('[cache] parseCache', cache);
+        // console.log('[f] cache.parse', cache.files);
 
         (files || []).filter(x => Boolean(x)).forEach(({ id, url }) => {
             FileStore.setDataUrl(id, url);
@@ -287,16 +307,17 @@ class CacheStore extends EventEmitter {
         }
         this.filters = filters;
 
+        // console.log('[cm] save');
         this.saveInternal();
     }
 
     async saveInternal() {
-        // console.log('[cm] saveInternal', this.filters, this.chatIds, this.archiveChatIds);
+        // console.log('[cm] saveInternal');
         const cache = await this.getCache(this.chatIds, this.archiveChatIds);
         const files = cache.files;
         cache.files = [];
         // console.log('[cm] save cache', cache);
-        await CacheManager.save('cache', cache);
+        await CacheManager.save(this.cacheKey, cache);
 
         const promises = [];
         files.forEach(x => {
@@ -314,30 +335,28 @@ class CacheStore extends EventEmitter {
                 })
             );
         });
-        // console.log('[cm] save files start', files);
         const results = await Promise.all(promises);
-        // console.log('[cm] save files', results);
-        await CacheManager.save('files', results);
+        await CacheManager.save(this.filesKey, results);
 
         if (this.cacheContacts) {
             const contacts = this.contacts.user_ids.map(x => UserStore.get(x));
-            await CacheManager.save('contacts', contacts);
+            await CacheManager.save(this.contactsKey, contacts);
         }
 
         if (this.filters) {
-            await CacheManager.save('filters', this.filters);
+            await CacheManager.save(this.filtersKey, this.filters);
         }
     }
 
     clear() {
         const promises = [];
-        promises.push(CacheManager.remove('cache').catch(error => null));
-        promises.push(CacheManager.remove('files').catch(error => null));
-        promises.push(CacheManager.remove('filters').catch(error => null));
-        promises.push(CacheManager.remove('contacts').catch(error => null));
-        promises.push(CacheManager.remove('register').catch(error => null));
+        promises.push(CacheManager.remove(this.cacheKey).catch(error => null));
+        promises.push(CacheManager.remove(this.filesKey).catch(error => null));
+        promises.push(CacheManager.remove(this.filtersKey).catch(error => null));
+        promises.push(CacheManager.remove(this.contactsKey).catch(error => null));
+        promises.push(CacheManager.remove(this.registerKey).catch(error => null));
 
-        Promise.all(promises)
+        Promise.all(promises);
     }
 
     clearDataUrls() {

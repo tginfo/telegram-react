@@ -63,7 +63,7 @@ class ChatStore extends EventEmitter {
     };
 
     updateChatChatLists(chatId) {
-        const { chat } = this.get(chatId);
+        const chat = this.get(chatId);
         if (!chat) return;
 
         const { positions } = chat;
@@ -158,6 +158,17 @@ class ChatStore extends EventEmitter {
                 }
 
                 this.updateChatChatLists(chat_id);
+
+                this.emitFastUpdate(update);
+                break;
+            }
+            case 'updateChatIsBlocked': {
+                const { chat_id, is_blocked } = update;
+
+                const chat = this.get(chat_id);
+                if (chat) {
+                    this.assign(chat, { is_blocked });
+                }
 
                 this.emitFastUpdate(update);
                 break;
@@ -298,6 +309,17 @@ class ChatStore extends EventEmitter {
                 this.emitFastUpdate(update);
                 break;
             }
+            case 'updateChatVoiceChat': {
+                const { chat_id, voice_chat_group_call_id, is_voice_chat_empty } = update;
+
+                const chat = this.get(chat_id);
+                if (chat) {
+                    this.assign(chat, { voice_chat_group_call_id, is_voice_chat_empty });
+                }
+
+                this.emitFastUpdate(update);
+                break;
+            }
             case 'updateNewChat': {
                 this.set(update.chat);
 
@@ -358,7 +380,23 @@ class ChatStore extends EventEmitter {
                 this.emitUpdate(update);
                 break;
             }
+            case 'clientUpdateHintsClose': {
+                this.emitUpdate(update);
+                break;
+            }
+            case 'clientUpdateHintsGlobal': {
+                this.emitUpdate(update);
+                break;
+            }
+            case 'clientUpdateHintsLocal': {
+                this.emitUpdate(update);
+                break;
+            }
             case 'clientUpdateClearHistory': {
+                this.emitUpdate(update);
+                break;
+            }
+            case 'clientUpdateClearOpenChatOptions': {
                 this.emitUpdate(update);
                 break;
             }
