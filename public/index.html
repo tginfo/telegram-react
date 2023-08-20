@@ -21,6 +21,42 @@
   You need to enable JavaScript to run this app.
 </noscript>
 <div id="root"></div>
+<div id="deprecation" style="
+    z-index: 100;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: var(--background);
+    padding: 15px;
+    box-shadow: 0 10px 10px rgba(0,0,0,.1);
+    border-radius: 16px;
+    max-width: 500px;
+    margin: 20px;
+    line-height: 1.2;
+">
+    <h2 style="
+    margin-top: 0;
+">Эта версия Telegram Web больше не поддерживается</h2>
+    <p>Перейдите на новый официальный Web-клиент</p>
+    <p style="
+    margin-bottom: 0;
+"><a href="https://web.telegram.org" style="
+    display: inline-block;
+    background: var(--color-accent-main);
+    color: var(--background);
+    padding: 10px 15px;
+    border-radius: 10px;
+    text-decoration: none;
+">Открыть web.telegram.org</a><a href="javascript:document.getElementById('deprecation').remove()" style="
+    display: inline-block;
+    background: var(--background);
+    color: var(--color-accent-main);
+    padding: 10px 15px;
+    border-radius: 10px;
+    text-decoration: none;
+    margin-left: 10px;
+">Скрыть</a></p>
+</div>
 <div id="players"></div>
 <div id="group-call-player"></div>
 <script src="tgsticker.js"></script>
